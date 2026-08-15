@@ -20,6 +20,7 @@ export default function Sidebar() {
       '/menu', 
       '/meja', 
       '/pesan', 
+      '/pemesanan', // Menampung variasi path pemesanan
       '/settings/users', 
       '/settings/system'
     ];
@@ -43,6 +44,15 @@ export default function Sidebar() {
           setAllowedMenus(defaultMenus);
         } else {
           let userMenus = Array.isArray(user.allowedMenus) ? [...user.allowedMenus] : [];
+          
+          // Sinkronisasi otomatis jika database menyimpan '/pemesanan' agar tetap tembus ke '/pesan'
+          if (userMenus.includes('/pemesanan') && !userMenus.includes('/pesan')) {
+            userMenus.push('/pesan');
+          }
+          if (userMenus.includes('/pesan') && !userMenus.includes('/pemesanan')) {
+            userMenus.push('/pemesanan');
+          }
+
           if (!userMenus.includes('/meja')) {
             userMenus.push('/meja');
           }

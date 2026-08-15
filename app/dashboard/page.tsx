@@ -14,8 +14,23 @@ interface Transaction {
 export default function DashboardPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [filterDate, setFilterDate] = useState('');
+  const [currentUserName, setCurrentUserName] = useState('Karyawan');
+  const [currentUserRole, setCurrentUserRole] = useState('Master');
 
   useEffect(() => {
+    // Ambil informasi sesi user aktif dari localStorage
+    const currentUserStr = localStorage.getItem('rjresto_current_user');
+    if (currentUserStr) {
+      try {
+        const user = JSON.parse(currentUserStr);
+        setCurrentUserName(user.nama || 'Karyawan');
+        setCurrentUserRole(user.role || 'Master');
+      } catch (e) {
+        console.error("Gagal parsing user session", e);
+      }
+    }
+
+    // Ambil data transaksi
     const saved = localStorage.getItem('rjresto_transactions');
     if (saved) {
       try {
@@ -29,7 +44,21 @@ export default function DashboardPage() {
     }
   }, []);
 
+  // Cek apakah akun yang login memiliki hak akses master/admin/matthew
+  const roleLower = currentUserRole.trim().toLowerCase();
+  const nameLower = currentUserName.trim().toLowerCase();
+  const isMasterOrAdmin = 
+    roleLower === 'master' || 
+    roleLower === 'super admin' || 
+    roleLower === 'admin' || 
+    nameLower === 'matthew' || 
+    nameLower === 'admin';
+
   const clearData = () => {
+    if (!isMasterOrAdmin) {
+      alert('Akses ditolak! Hanya Akun Master/Admin yang diizinkan mereset data.');
+      return;
+    }
     if (confirm('Yakin ingin menghapus semua riwayat transaksi?')) {
       localStorage.removeItem('rjresto_transactions');
       setTransactions([]);
@@ -103,12 +132,16 @@ export default function DashboardPage() {
               <div className="bg-black/15 backdrop-blur-md px-4 py-2 rounded-xl text-sm font-semibold text-white">
                 📅 {currentDateText}
               </div>
-              <button 
-                onClick={clearData} 
-                className="bg-red-900/80 hover:bg-red-900 text-white px-4 py-2 rounded-xl text-sm font-bold shadow transition"
-              >
-                Reset Data
-              </button>
+              
+              {/* Tombol Reset Data hanya dirender jika akun adalah Master / Admin */}
+              {isMasterOrAdmin && (
+                <button 
+                  onClick={clearData} 
+                  className="bg-red-900/80 hover:bg-red-900 text-white px-4 py-2 rounded-xl text-sm font-bold shadow transition"
+                >
+                  Reset Data
+                </button>
+              )}
             </div>
           </div>
 
