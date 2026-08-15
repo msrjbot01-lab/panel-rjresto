@@ -33,13 +33,11 @@ export default function KasirPage() {
   const [diskonPersen, setDiskonPersen] = useState(0);
   const [uangDibayar, setUangDibayar] = useState('');
 
-  // State baru sesuai permintaan
   const [tipePesanan, setTipePesanan] = useState<'Dine In' | 'Take Away'>('Dine In');
   const [nomorMeja, setNomorMeja] = useState('');
-  const [statusPesanan, setStatusPesanan] = useState('Pending'); // Pending, Di Proses, Selesai
+  const [statusPesanan, setStatusPesanan] = useState('Pending');
 
   useEffect(() => {
-    // Muat Menu
     const savedMenu = localStorage.getItem('rjresto_menu');
     if (savedMenu) {
       try {
@@ -56,7 +54,6 @@ export default function KasirPage() {
       localStorage.setItem('rjresto_menu', JSON.stringify(defaultMenu));
     }
 
-    // Muat Meja
     const savedTables = localStorage.getItem('rjresto_tables');
     if (savedTables) {
       try {
@@ -189,7 +186,6 @@ export default function KasirPage() {
     const updatedTransactions = [newTx, ...existingTransactions];
     localStorage.setItem('rjresto_transactions', JSON.stringify(updatedTransactions));
 
-    // Cetak struk otomatis
     cetakStruk(newTx);
 
     alert(`Pembayaran berhasil diproses! Kembalian: Rp ${Math.max(0, kembalian).toLocaleString('id-ID')}`);
@@ -310,7 +306,6 @@ export default function KasirPage() {
                   <span className="text-xs text-amber-400 font-normal">{pesanan.length} item unik</span>
                 </h2>
 
-                {/* Opsi Tipe Pesanan, Meja, & Status */}
                 <div className="space-y-3 mb-4 bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs">
                   <div>
                     <span className="text-slate-400 block mb-1">Tipe Pesanan</span>

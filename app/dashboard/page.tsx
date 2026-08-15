@@ -2,13 +2,30 @@
 import { useState, useEffect } from 'react';
 import Sidebar from '@/app/components/Sidebar';
 
+interface CartItem {
+  id: number;
+  nama: string;
+  harga: number;
+  qty: number;
+}
+
 interface Transaction {
   id: string;
   time: string;
   date: string;
   itemsCount: number;
+  subtotal: number;
+  diskonPersen: number;
+  nilaiDiskon: number;
   total: number;
+  uangDibayar: number;
+  kembalian: number;
+  metode: string;
+  tipePesanan: string;
+  nomorMeja: string;
+  statusPesanan: string;
   status: string;
+  items: CartItem[];
 }
 
 export default function DashboardPage() {
@@ -18,7 +35,6 @@ export default function DashboardPage() {
   const [currentUserRole, setCurrentUserRole] = useState('Master');
 
   useEffect(() => {
-    // Ambil informasi sesi user aktif dari localStorage
     const currentUserStr = localStorage.getItem('rjresto_current_user');
     if (currentUserStr) {
       try {
@@ -30,7 +46,6 @@ export default function DashboardPage() {
       }
     }
 
-    // Ambil data transaksi
     const saved = localStorage.getItem('rjresto_transactions');
     if (saved) {
       try {
@@ -44,7 +59,6 @@ export default function DashboardPage() {
     }
   }, []);
 
-  // Cek apakah akun yang login memiliki hak akses master/admin/matthew
   const roleLower = currentUserRole.trim().toLowerCase();
   const nameLower = currentUserName.trim().toLowerCase();
   const isMasterOrAdmin = 
@@ -65,9 +79,9 @@ export default function DashboardPage() {
     }
   };
 
-  const updateStatus = (id: string, newStatus: string) => {
+  const updateStatus = (id: string, newStatusPesanan: string, newStatus: string) => {
     const updated = transactions.map((tx) =>
-      tx.id === id ? { ...tx, status: newStatus } : tx
+      tx.id === id ? { ...tx, statusPesanan: newStatusPesanan, status: newStatus } : tx
     );
     setTransactions(updated);
     localStorage.setItem('rjresto_transactions', JSON.stringify(updated));
@@ -78,17 +92,48 @@ export default function DashboardPage() {
     if (printWindow) {
       printWindow.document.write(`
         <html>
-          <head><title>Struk - ${tx.id}</title></head>
-          <body style="font-family: monospace; padding: 20px;">
-            <h3>RJResto</h3>
-            <p>--------------------------------</p>
+          <head>
+            <title>Struk - ${tx.id}</title>
+            <style>
+              body { font-family: monospace; font-size: 12px; width: 300px; padding: 10px; color: #000; }
+              .center { text-align: center; }
+              .flex { display: flex; justify-content: space-between; }
+              hr { border: dashed 1px #000; }
+            </style>
+          </head>
+          <body>
+            <div class="center">
+              <h3>RJResto</h3>
+              <p>Sistem Kasir Restoran</p>
+            </div>
+            <hr/>
             <p>ID Transaksi : ${tx.id}</p>
-            <p>Waktu        : ${tx.date} ${tx.time}</p>
-            <p>--------------------------------</p>
-            <p><strong>Total Pembayaran: Rp ${tx.total.toLocaleString('id-ID')}</strong></p>
-            <p>Status       : ${tx.status}</p>
-            <p>--------------------------------</p>
-            <p style="text-align: center;">Terima Kasih!</p>
+            <p>Tanggal      : ${tx.date} ${tx.time}</p>
+            <p>Tipe Pesanan : ${tx.tipePesanan || 'Dine In'} ${tx.nomorMeja && tx.nomorMeja !== '-' ? `(Meja ${tx.nomorMeja})` : ''}</p>
+            <p>Status       : ${tx.statusPesanan || tx.status || 'Berhasil'}</p>
+            <p>Metode Bayar : ${tx.metode || 'Tunai'}</p>
+            <hr/>
+            <div>
+              ${tx.items && Array.isArray(tx.items) ? tx.items.map((i: any) => `
+                <div style="margin-bottom: 4px;">
+                  <div>${i.nama}</div>
+                  <div class="flex">
+                    <span>${i.qty}x @ Rp ${i.harga.toLocaleString('id-ID')}</span>
+                    <span>Rp ${(i.harga * i.qty).toLocaleString('id-ID')}</span>
+                  </div>
+                </div>
+              `).join('') : '<p>Detail item tidak tersedia</p>'}
+            </div>
+            <hr/>
+            <div class="flex"><span>Subtotal</span> <span>Rp ${(tx.subtotal || tx.total).toLocaleString('id-ID')}</span></div>
+            ${tx.diskonPersen > 0 ? `<div class="flex"><span>Diskon (${tx.diskonPersen}%)</span> <span>-Rp ${(tx.nilaiDiskon || 0).toLocaleString('id-ID')}</span></div>` : ''}
+            <div class="flex"><span><strong>Total Pembelian</strong></span> <strong>Rp ${(tx.total || 0).toLocaleString('id-ID')}</strong></div>
+            ${tx.uangDibayar ? `<div class="flex"><span>Uang Dibayar</span> Rp ${tx.uangDibayar.toLocaleString('id-ID')}</div>` : ''}
+            ${tx.kembalian !== undefined ? `<div class="flex"><span>Kembalian</span> Rp ${tx.kembalian.toLocaleString('id-ID')}</div>` : ''}
+            <hr/>
+            <div class="center">
+              <p>Terima Kasih Atas Kunjungan Anda!</p>
+            </div>
             <script>window.print();</script>
           </body>
         </html>
@@ -133,7 +178,6 @@ export default function DashboardPage() {
                 📅 {currentDateText}
               </div>
               
-              {/* Tombol Reset Data hanya dirender jika akun adalah Master / Admin */}
               {isMasterOrAdmin && (
                 <button 
                   onClick={clearData} 
@@ -178,7 +222,7 @@ export default function DashboardPage() {
             <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl">
               <p className="text-sm font-semibold text-slate-400 uppercase tracking-wider">Total Pesanan</p>
               <h3 className="text-2xl font-bold text-white mt-1">{filteredData.length}</h3>
-              <p className="text-xs text-blue-400 font-semibold mt-1">🧾 Transaksi berhasil</p>
+              <p className="text-xs text-blue-400 font-semibold mt-1">🧾 Transaksi tercatat</p>
             </div>
 
             <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl">
@@ -201,9 +245,9 @@ export default function DashboardPage() {
                 <thead>
                   <tr className="bg-slate-950/50 text-slate-400 uppercase text-xs tracking-wider border-b border-slate-800">
                     <th className="py-4 px-6 font-semibold">ID Transaksi</th>
-                    <th className="py-4 px-6 font-semibold">Waktu</th>
-                    <th className="py-4 px-6 font-semibold">Jumlah Item</th>
-                    <th className="py-4 px-6 font-semibold">Total Pembayaran</th>
+                    <th className="py-4 px-6 font-semibold">Waktu / Tipe</th>
+                    <th className="py-4 px-6 font-semibold">Item</th>
+                    <th className="py-4 px-6 font-semibold">Total</th>
                     <th className="py-4 px-6 font-semibold text-center">Status</th>
                     <th className="py-4 px-6 font-semibold text-center">Aksi</th>
                   </tr>
@@ -218,24 +262,34 @@ export default function DashboardPage() {
                   ) : (
                     filteredData.map((tx) => (
                       <tr key={tx.id} className="hover:bg-slate-800/50 transition">
-                        <td className="py-4 px-6 font-bold text-white">{tx.id}</td>
-                        <td className="py-4 px-6 text-slate-300">{tx.date} - {tx.time}</td>
+                        <td className="py-4 px-6 font-bold text-white">
+                          {tx.id}
+                          <div className="text-xs font-normal text-slate-400">{tx.metode || 'Tunai'}</div>
+                        </td>
+                        <td className="py-4 px-6 text-slate-300">
+                          <div className="font-medium">{tx.date} - {tx.time}</div>
+                          <div className="text-xs text-amber-400">
+                            {tx.tipePesanan || 'Dine In'} {tx.nomorMeja && tx.nomorMeja !== '-' ? `(Meja ${tx.nomorMeja})` : ''}
+                          </div>
+                        </td>
                         <td className="py-4 px-6 text-slate-300">{tx.itemsCount} Item</td>
                         <td className="py-4 px-6 font-bold text-amber-400">Rp {(tx.total || 0).toLocaleString('id-ID')}</td>
                         <td className="py-4 px-6 text-center">
                           <span className={`text-xs font-bold px-3 py-1 rounded-full border ${
-                            tx.status && tx.status.includes('Pending')
+                            (tx.statusPesanan === 'Pending' || tx.status?.includes('Pending'))
                               ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
-                              : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                              : (tx.statusPesanan === 'Di Proses'
+                                ? 'bg-blue-500/10 text-blue-400 border-blue-500/20'
+                                : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20')
                           }`}>
-                            {tx.status || 'Berhasil'}
+                            {tx.statusPesanan || tx.status || 'Berhasil'}
                           </span>
                         </td>
                         <td className="py-4 px-6 text-center">
-                          <div className="flex items-center justify-center gap-2">
-                            {tx.status && tx.status.includes('Pending') && (
+                          <div className="flex items-center justify-center gap-2 flex-wrap">
+                            {tx.statusPesanan !== 'Selesai' && (
                               <button
-                                onClick={() => updateStatus(tx.id, 'Berhasil')}
+                                onClick={() => updateStatus(tx.id, 'Selesai', 'Berhasil')}
                                 className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition"
                               >
                                 Selesai
