@@ -16,8 +16,15 @@ interface CartItem extends MenuItem {
   qty: number;
 }
 
+interface TableItem {
+  id: string;
+  number: string;
+  status: string;
+}
+
 export default function KasirPage() {
   const [daftarMenu, setDaftarMenu] = useState<MenuItem[]>([]);
+  const [daftarMeja, setDaftarMeja] = useState<TableItem[]>([]);
   const [pesanan, setPesanan] = useState<CartItem[]>([]);
   const [selectedKategori, setSelectedKategori] = useState('Semua');
   const [searchTerm, setSearchTerm] = useState('');
@@ -26,7 +33,13 @@ export default function KasirPage() {
   const [diskonPersen, setDiskonPersen] = useState(0);
   const [uangDibayar, setUangDibayar] = useState('');
 
+  // State baru sesuai permintaan
+  const [tipePesanan, setTipePesanan] = useState<'Dine In' | 'Take Away'>('Dine In');
+  const [nomorMeja, setNomorMeja] = useState('');
+  const [statusPesanan, setStatusPesanan] = useState('Pending'); // Pending, Di Proses, Selesai
+
   useEffect(() => {
+    // Muat Menu
     const savedMenu = localStorage.getItem('rjresto_menu');
     if (savedMenu) {
       try {
@@ -41,6 +54,16 @@ export default function KasirPage() {
       ];
       setDaftarMenu(defaultMenu);
       localStorage.setItem('rjresto_menu', JSON.stringify(defaultMenu));
+    }
+
+    // Muat Meja
+    const savedTables = localStorage.getItem('rjresto_tables');
+    if (savedTables) {
+      try {
+        setDaftarMeja(JSON.parse(savedTables));
+      } catch (e) {
+        console.error("Gagal parsing meja", e);
+      }
     }
   }, []);
 
@@ -68,12 +91,71 @@ export default function KasirPage() {
   const subtotalHarga = pesanan.reduce((total, item) => total + item.harga * item.qty, 0);
   const nilaiDiskon = (subtotalHarga * diskonPersen) / 100;
   const totalHarga = subtotalHarga - nilaiDiskon;
-  const kembalian = Number(uangDibayar) - totalHarga;
+  const numericUangDibayar = Number(uangDibayar) || 0;
+  const kembalian = numericUangDibayar - totalHarga;
+
+  const cetakStruk = (tx: any) => {
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(`
+        <html>
+          <head>
+            <title>Struk - ${tx.id}</title>
+            <style>
+              body { font-family: monospace; font-size: 12px; width: 300px; padding: 10px; color: #000; }
+              .center { text-align: center; }
+              .flex { display: flex; justify-content: space-between; }
+              hr { border: dashed 1px #000; }
+            </style>
+          </head>
+          <body>
+            <div class="center">
+              <h3>RJResto</h3>
+              <p>Sistem Kasir Restoran</p>
+            </div>
+            <hr/>
+            <p>ID Transaksi : ${tx.id}</p>
+            <p>Tanggal      : ${tx.date} ${tx.time}</p>
+            <p>Tipe Pesanan : ${tx.tipePesanan} ${tx.tipePesanan === 'Dine In' ? `(Meja ${tx.nomorMeja})` : ''}</p>
+            <p>Status       : ${tx.statusPesanan}</p>
+            <p>Metode Bayar : ${tx.metode}</p>
+            <hr/>
+            <div>
+              ${tx.items.map((i: any) => `
+                <div style="margin-bottom: 4px;">
+                  <div>${i.nama}</div>
+                  <div class="flex">
+                    <span>${i.qty}x @ Rp ${i.harga.toLocaleString('id-ID')}</span>
+                    <span>Rp ${(i.harga * i.qty).toLocaleString('id-ID')}</span>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+            <hr/>
+            <div class="flex"><span>Subtotal</span> <span>Rp ${tx.subtotal.toLocaleString('id-ID')}</span></div>
+            ${tx.diskonPersen > 0 ? `<div class="flex"><span>Diskon (${tx.diskonPersen}%)</span> <span>-Rp ${tx.nilaiDiskon.toLocaleString('id-ID')}</span></div>` : ''}
+            <div class="flex"><span><strong>Total Pembelian</strong></span> <strong>Rp ${tx.total.toLocaleString('id-ID')}</strong></div>
+            <div class="flex"><span>Uang Dibayar</span> Rp ${tx.uangDibayar.toLocaleString('id-ID')}</div>
+            <div class="flex"><span>Kembalian</span> Rp ${tx.kembalian.toLocaleString('id-ID')}</div>
+            <hr/>
+            <div class="center">
+              <p>Terima Kasih Atas Kunjungan Anda!</p>
+            </div>
+            <script>window.print();</script>
+          </body>
+        </html>
+      `);
+      printWindow.document.close();
+    }
+  };
 
   const prosesPembayaran = () => {
     if (pesanan.length === 0) return alert('Keranjang masih kosong!');
-    if (metodePembayaran === 'Tunai' && Number(uangDibayar) < totalHarga) {
+    if (metodePembayaran === 'Tunai' && numericUangDibayar < totalHarga) {
       return alert('Jumlah uang tunai kurang dari total pembayaran!');
+    }
+    if (tipePesanan === 'Dine In' && !nomorMeja) {
+      return alert('Silakan pilih nomor meja untuk pesanan Dine In!');
     }
 
     const totalItemsCount = pesanan.reduce((sum, item) => sum + item.qty, 0);
@@ -83,8 +165,17 @@ export default function KasirPage() {
       time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
       date: new Date().toLocaleDateString('id-ID'),
       itemsCount: totalItemsCount,
+      subtotal: subtotalHarga,
+      diskonPersen,
+      nilaiDiskon,
       total: totalHarga,
+      uangDibayar: numericUangDibayar,
+      kembalian: Math.max(0, kembalian),
       metode: metodePembayaran,
+      tipePesanan,
+      nomorMeja: tipePesanan === 'Dine In' ? nomorMeja : '-',
+      statusPesanan,
+      items: pesanan,
       status: 'Berhasil (Kasir)'
     };
 
@@ -98,10 +189,15 @@ export default function KasirPage() {
     const updatedTransactions = [newTx, ...existingTransactions];
     localStorage.setItem('rjresto_transactions', JSON.stringify(updatedTransactions));
 
-    alert(`Pembayaran berhasil diproses! Metode: ${metodePembayaran}. Kembalian: Rp ${Math.max(0, kembalian).toLocaleString('id-ID')}`);
+    // Cetak struk otomatis
+    cetakStruk(newTx);
+
+    alert(`Pembayaran berhasil diproses! Kembalian: Rp ${Math.max(0, kembalian).toLocaleString('id-ID')}`);
     setPesanan([]);
     setUangDibayar('');
     setDiskonPersen(0);
+    setNomorMeja('');
+    setStatusPesanan('Pending');
   };
 
   const filteredMenu = daftarMenu.filter((menu) => {
@@ -214,12 +310,62 @@ export default function KasirPage() {
                   <span className="text-xs text-amber-400 font-normal">{pesanan.length} item unik</span>
                 </h2>
 
+                {/* Opsi Tipe Pesanan, Meja, & Status */}
+                <div className="space-y-3 mb-4 bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs">
+                  <div>
+                    <span className="text-slate-400 block mb-1">Tipe Pesanan</span>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => setTipePesanan('Dine In')}
+                        className={`py-1.5 rounded-lg font-bold transition ${tipePesanan === 'Dine In' ? 'bg-amber-500 text-slate-950' : 'bg-slate-800 text-slate-300'}`}
+                      >
+                        🍽️ Dine In
+                      </button>
+                      <button
+                        onClick={() => setTipePesanan('Take Away')}
+                        className={`py-1.5 rounded-lg font-bold transition ${tipePesanan === 'Take Away' ? 'bg-amber-500 text-slate-950' : 'bg-slate-800 text-slate-300'}`}
+                      >
+                        🛍️ Take Away
+                      </button>
+                    </div>
+                  </div>
+
+                  {tipePesanan === 'Dine In' && (
+                    <div>
+                      <span className="text-slate-400 block mb-1">Nomor Meja</span>
+                      <select
+                        value={nomorMeja}
+                        onChange={(e) => setNomorMeja(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-800 px-2.5 py-1.5 rounded-lg text-white focus:outline-none focus:border-amber-500"
+                      >
+                        <option value="">-- Pilih Nomor Meja --</option>
+                        {daftarMeja.map((meja) => (
+                          <option key={meja.id} value={meja.number}>Meja {meja.number} ({meja.status})</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  <div>
+                    <span className="text-slate-400 block mb-1">Status Pesanan</span>
+                    <select
+                      value={statusPesanan}
+                      onChange={(e) => setStatusPesanan(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-800 px-2.5 py-1.5 rounded-lg text-white focus:outline-none focus:border-amber-500"
+                    >
+                      <option value="Pending">Pending</option>
+                      <option value="Di Proses">Di Proses</option>
+                      <option value="Selesai">Selesai</option>
+                    </select>
+                  </div>
+                </div>
+
                 {pesanan.length === 0 ? (
-                  <p className="text-slate-400 text-sm py-12 text-center bg-slate-950/40 rounded-xl border border-dashed border-slate-800">
-                    Belum ada menu yang dipilih. Silakan klik menu di samping.
+                  <p className="text-slate-400 text-sm py-6 text-center bg-slate-950/40 rounded-xl border border-dashed border-slate-800">
+                    Belum ada menu yang dipilih.
                   </p>
                 ) : (
-                  <div className="space-y-2.5 max-h-[240px] overflow-y-auto pr-1">
+                  <div className="space-y-2.5 max-h-[200px] overflow-y-auto pr-1">
                     {pesanan.map((item) => (
                       <div key={item.id} className="flex justify-between items-center bg-slate-950 p-2.5 rounded-xl border border-slate-800">
                         <div>
@@ -250,7 +396,7 @@ export default function KasirPage() {
               </div>
 
               {pesanan.length > 0 && (
-                <div className="space-y-3 pt-2 border-t border-slate-800 text-xs">
+                <div className="space-y-2.5 pt-2 border-t border-slate-800 text-xs">
                   <div className="flex justify-between text-slate-300">
                     <span>Subtotal</span>
                     <span>Rp {subtotalHarga.toLocaleString('id-ID')}</span>
@@ -273,12 +419,12 @@ export default function KasirPage() {
 
                   <div className="flex justify-between items-center text-slate-300">
                     <span>Metode Bayar</span>
-                    <div className="flex gap-1.5">
+                    <div className="flex gap-1">
                       {['Tunai', 'QRIS', 'Debit'].map((metode) => (
                         <button
                           key={metode}
                           onClick={() => setMetodePembayaran(metode)}
-                          className={`px-2.5 py-1 rounded-lg font-bold transition text-xs ${
+                          className={`px-2 py-1 rounded-lg font-bold transition text-xs ${
                             metodePembayaran === metode
                               ? 'bg-amber-500 text-slate-900'
                               : 'bg-slate-800 text-slate-300'
@@ -300,7 +446,7 @@ export default function KasirPage() {
                         onChange={(e) => setUangDibayar(e.target.value)}
                         className="w-full bg-slate-950 border border-slate-800 px-3 py-1.5 rounded-xl text-xs focus:outline-none focus:border-amber-500 text-amber-300 font-semibold"
                       />
-                      {Number(uangDibayar) >= totalHarga && (
+                      {numericUangDibayar >= totalHarga && (
                         <p className="text-emerald-400 text-right mt-0.5">
                           Kembalian: Rp {kembalian.toLocaleString('id-ID')}
                         </p>
@@ -319,7 +465,7 @@ export default function KasirPage() {
                   onClick={prosesPembayaran}
                   className="w-full bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold py-3 rounded-xl transition shadow-lg text-sm"
                 >
-                  Proses Pembayaran
+                  Proses Pembayaran & Cetak Struk
                 </button>
               </div>
             </div>
