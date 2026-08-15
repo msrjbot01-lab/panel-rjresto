@@ -17,8 +17,9 @@ interface CartItem extends MenuItem {
 }
 
 interface TableItem {
-  id: string;
-  nomor: string;
+  id: string | number;
+  nomor?: string;
+  namaMeja?: string;
   status: string;
 }
 
@@ -56,70 +57,76 @@ export default function KasirPage() {
       localStorage.setItem('rjresto_menu', JSON.stringify(defaultMenu));
     }
 
-    // 2. Inisialisasi 6 Meja default jika belum ada (menggunakan key 'rjresto_meja')
-    const savedTables = localStorage.getItem('rjresto_meja');
-    if (savedTables) {
-      try {
-        const parsedTables = JSON.parse(savedTables);
-        if (Array.isArray(parsedTables) && parsedTables.length > 0) {
-          setDaftarMeja(parsedTables);
-        } else {
-          setAndSaveDefaultTables();
+    // 2. Inisialisasi Meja dari Manajemen Meja
+    const loadTables = () => {
+      const possibleKeys = ['rjresto_meja', 'rjresto_tables', 'mejaResto', 'tables'];
+      let loaded = false;
+
+      for (const key of possibleKeys) {
+        const data = localStorage.getItem(key);
+        if (data) {
+          try {
+            const parsed = JSON.parse(data);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              setDaftarMeja(parsed);
+              loaded = true;
+              break;
+            }
+          } catch (e) {
+            console.error(`Gagal parsing ${key}`, e);
+          }
         }
-      } catch (e) {
-        setAndSaveDefaultTables();
       }
-    } else {
-      setAndSaveDefaultTables();
-    }
 
-    // 3. Ambil Nama Kasir otomatis dari akun login panel
+      if (!loaded) {
+        const defaultTables: TableItem[] = [
+          { id: '1', nomor: '1', status: 'Kosong' },
+          { id: '2', nomor: '2', status: 'Kosong' },
+          { id: '3', nomor: '3', status: 'Kosong' },
+          { id: '4', nomor: '4', status: 'Kosong' },
+          { id: '5', nomor: '5', status: 'Kosong' },
+          { id: '6', nomor: '6', status: 'Kosong' },
+        ];
+        setDaftarMeja(defaultTables);
+        localStorage.setItem('rjresto_meja', JSON.stringify(defaultTables));
+      }
+    };
+    loadTables();
+
+    // 3. Ambil Nama Kasir otomatis (Hanya namanya saja, contoh: "Marie")
     const loadLoggedInUser = () => {
-      try {
-        const currentAccount = localStorage.getItem('rjresto_current_account');
-        if (currentAccount) {
-          const acc = JSON.parse(currentAccount);
-          if (acc.nama) {
-            setNamaKasir(acc.nama);
-            return;
-          }
-          if (acc.username) {
-            setNamaKasir(acc.username);
-            return;
-          }
-        }
+      const possibleAccountKeys = [
+        'rjresto_current_account', 
+        'rjresto_user', 
+        'current_user', 
+        'user_login',
+        'activeUser'
+      ];
 
-        const generalUser = localStorage.getItem('rjresto_user');
-        if (generalUser) {
-          const usr = JSON.parse(generalUser);
-          if (usr.nama) {
-            setNamaKasir(usr.nama);
+      for (const key of possibleAccountKeys) {
+        const val = localStorage.getItem(key);
+        if (val) {
+          try {
+            const obj = JSON.parse(val);
+            if (obj && (obj.nama || obj.name || obj.username)) {
+              let namaRaw = obj.nama || obj.name || obj.username;
+              const namaBersih = namaRaw.split('(')[0].trim();
+              setNamaKasir(namaBersih);
+              return;
+            }
+            const namaBersih = val.split('(')[0].trim();
+            setNamaKasir(namaBersih);
             return;
-          }
-          if (usr.username) {
-            setNamaKasir(usr.username);
+          } catch (e) {
+            const namaBersih = val.split('(')[0].trim();
+            setNamaKasir(namaBersih);
             return;
           }
         }
-      } catch (e) {
-        console.error("Gagal memuat akun login", e);
       }
     };
     loadLoggedInUser();
   }, []);
-
-  const setAndSaveDefaultTables = () => {
-    const defaultTables: TableItem[] = [
-      { id: '1', nomor: '1', status: 'Kosong' },
-      { id: '2', nomor: '2', status: 'Kosong' },
-      { id: '3', nomor: '3', status: 'Kosong' },
-      { id: '4', nomor: '4', status: 'Kosong' },
-      { id: '5', nomor: '5', status: 'Kosong' },
-      { id: '6', nomor: '6', status: 'Kosong' },
-    ];
-    setDaftarMeja(defaultTables);
-    localStorage.setItem('rjresto_meja', JSON.stringify(defaultTables));
-  };
 
   const tambahPesanan = (menu: MenuItem) => {
     if (menu.tersedia === false) return alert('Menu ini sedang kosong/habis!');
@@ -245,27 +252,27 @@ export default function KasirPage() {
     const updatedTransactions = [newTx, ...existingTransactions];
     localStorage.setItem('rjresto_transactions', JSON.stringify(updatedTransactions));
 
-    // Sinkronisasi status meja langsung ke rjresto_meja agar Manajemen Meja ikut terupdate menjadi 'Terisi'
+    // Sinkronisasi status meja di localStorage agar terupdate menjadi 'Terisi'
     if (tipePesanan === 'Dine In' && nomorMeja) {
-      try {
-        const savedTables = localStorage.getItem('rjresto_meja');
-        let tablesParsed = savedTables ? JSON.parse(savedTables) : [
-          { id: '1', nomor: '1', status: 'Kosong' },
-          { id: '2', nomor: '2', status: 'Kosong' },
-          { id: '3', nomor: '3', status: 'Kosong' },
-          { id: '4', nomor: '4', status: 'Kosong' },
-          { id: '5', nomor: '5', status: 'Kosong' },
-          { id: '6', nomor: '6', status: 'Kosong' },
-        ];
-
-        const updatedTables = tablesParsed.map((t: any) => 
-          String(t.nomor) === String(nomorMeja) ? { ...t, status: 'Terisi' } : t
-        );
-
-        localStorage.setItem('rjresto_meja', JSON.stringify(updatedTables));
-        setDaftarMeja(updatedTables);
-      } catch (e) {
-        console.error("Gagal memperbarui status meja", e);
+      const keysToUpdate = ['rjresto_meja', 'rjresto_tables', 'mejaResto', 'tables'];
+      for (const key of keysToUpdate) {
+        const savedTables = localStorage.getItem(key);
+        if (savedTables) {
+          try {
+            const tablesParsed = JSON.parse(savedTables);
+            const updatedTables = tablesParsed.map((t: any) => {
+              const currentNum = String(t.nomor || t.namaMeja || t.id);
+              if (currentNum === String(nomorMeja)) {
+                return { ...t, status: 'Terisi' };
+              }
+              return t;
+            });
+            localStorage.setItem(key, JSON.stringify(updatedTables));
+            setDaftarMeja(updatedTables);
+          } catch (e) {
+            console.error("Gagal update status meja", e);
+          }
+        }
       }
     }
 
@@ -427,11 +434,15 @@ export default function KasirPage() {
                         className="w-full bg-slate-900 border border-slate-800 px-2.5 py-2 rounded-lg text-white focus:outline-none focus:border-amber-500"
                       >
                         <option value="">-- Pilih Nomor Meja --</option>
-                        {daftarMeja.map((meja) => (
-                          <option key={meja.id} value={meja.nomor}>
-                            Meja {meja.nomor} ({meja.status})
-                          </option>
-                        ))}
+                        {daftarMeja.map((meja, idx) => {
+                          const displayNum = meja.nomor || meja.namaMeja || meja.id || `Meja ${idx + 1}`;
+                          const statusMeja = meja.status || 'Kosong';
+                          return (
+                            <option key={meja.id || idx} value={displayNum}>
+                              Meja {displayNum} ({statusMeja})
+                            </option>
+                          );
+                        })}
                       </select>
                     </div>
                   )}
