@@ -68,7 +68,7 @@ export default function Sidebar() {
     { name: 'Kasir POS', href: '/kasir', icon: '💻' },
     { name: 'Manajemen Menu', href: '/menu', icon: '📋' },
     { name: 'Manajemen Meja', href: '/meja', icon: '🪑' },
-    { name: 'Pemesanan Pelanggan', href: '/pemesanan', icon: '📱' },
+    { name: 'Pemesanan Pelanggan', href: '/pesan', icon: '📱' },
     { name: 'Pengaturan Akun', href: '/settings/users', icon: '👥' },
     { name: 'Pengaturan Sistem', href: '/settings/system', icon: '⚙️' },
   ];
