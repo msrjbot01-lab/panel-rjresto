@@ -207,6 +207,23 @@ export default function KasirPage() {
     const updatedTransactions = [newTx, ...existingTransactions];
     localStorage.setItem('rjresto_transactions', JSON.stringify(updatedTransactions));
 
+    // Sinkronisasi status meja menjadi Terisi di Manajemen Meja
+    if (tipePesanan === 'Dine In' && nomorMeja) {
+      try {
+        const savedTables = localStorage.getItem('rjresto_tables');
+        if (savedTables) {
+          let tablesParsed = JSON.parse(savedTables);
+          const updatedTables = tablesParsed.map((t: any) => 
+            t.number === nomorMeja ? { ...t, status: 'Terisi' } : t
+          );
+          localStorage.setItem('rjresto_tables', JSON.stringify(updatedTables));
+          setDaftarMeja(updatedTables);
+        }
+      } catch (e) {
+        console.error("Gagal memperbarui status meja", e);
+      }
+    }
+
     cetakStruk(newTx);
 
     alert(`Pembayaran berhasil diproses! Kembalian: Rp ${Math.max(0, kembalian).toLocaleString('id-ID')}`);
