@@ -19,7 +19,7 @@ export default function Sidebar() {
       '/kasir', 
       '/menu', 
       '/meja', 
-      '/pemesanan', 
+      '/pesan', 
       '/settings/users', 
       '/settings/system'
     ];
