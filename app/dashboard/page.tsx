@@ -25,8 +25,8 @@ interface Transaction {
   nomorMeja: string;
   statusPesanan: string;
   status: string;
-  namaKasir?: string;       // Properti baru untuk nama kasir
-  namaPelanggan?: string;   // Properti baru untuk nama pelanggan (pesanan mandiri)
+  namaKasir?: string;       // Properti untuk nama kasir
+  namaPelanggan?: string;   // Properti untuk nama pelanggan (pesanan mandiri)
   items: CartItem[];
 }
 
@@ -278,15 +278,22 @@ export default function DashboardPage() {
                           </div>
                         </td>
                         <td className="py-4 px-6">
-                          <div className="font-semibold text-white">
-                            👤 Kasir: <span className="text-amber-400">{tx.namaKasir || 'Kasir Utama'}</span>
-                          </div>
-                          {tx.namaPelanggan ? (
-                            <div className="mt-1 inline-flex items-center gap-1.5 px-2 py-0.5 bg-blue-500/10 text-blue-400 rounded-md border border-blue-500/20 text-xs font-medium">
-                              🏷️ Pelanggan: {tx.namaPelanggan} <span className="text-[10px] bg-blue-500/20 px-1 rounded text-blue-300">(Mandiri)</span>
+                          {tx.namaPelanggan || tx.id.startsWith('WEB-') ? (
+                            <div className="flex flex-col">
+                              <span className="text-blue-400 font-bold">
+                                🏷️ Pelanggan: {tx.namaPelanggan || 'Pelanggan Mandiri'}
+                              </span>
+                              <span className="text-[10px] text-blue-300/80 bg-blue-500/10 px-1.5 py-0.5 rounded border border-blue-500/20 w-fit mt-0.5">
+                                Pesanan Mandiri (Web)
+                              </span>
                             </div>
                           ) : (
-                            <div className="text-slate-500 text-xs mt-0.5 italic">Pesanan Langsung POS</div>
+                            <div className="flex flex-col">
+                              <span className="font-semibold text-white">
+                                👤 Kasir: <span className="text-amber-400">{tx.namaKasir || 'Kasir Utama'}</span>
+                              </span>
+                              <span className="text-slate-500 text-xs mt-0.5 italic">Pesanan Langsung POS</span>
+                            </div>
                           )}
                         </td>
                         <td className="py-4 px-6 text-slate-300">{tx.itemsCount} Item</td>
