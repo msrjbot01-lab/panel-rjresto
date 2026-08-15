@@ -38,6 +38,7 @@ export default function KasirPage() {
   const [statusPesanan, setStatusPesanan] = useState('Pending');
 
   useEffect(() => {
+    // Inisialisasi Menu
     const savedMenu = localStorage.getItem('rjresto_menu');
     if (savedMenu) {
       try {
@@ -54,15 +55,35 @@ export default function KasirPage() {
       localStorage.setItem('rjresto_menu', JSON.stringify(defaultMenu));
     }
 
+    // Inisialisasi Meja (Default otomatis jika kosong agar tidak kosong di dropdown)
     const savedTables = localStorage.getItem('rjresto_tables');
     if (savedTables) {
       try {
-        setDaftarMeja(JSON.parse(savedTables));
+        const parsedTables = JSON.parse(savedTables);
+        if (Array.isArray(parsedTables) && parsedTables.length > 0) {
+          setDaftarMeja(parsedTables);
+        } else {
+          setAndSaveDefaultTables();
+        }
       } catch (e) {
-        console.error("Gagal parsing meja", e);
+        setAndSaveDefaultTables();
       }
+    } else {
+      setAndSaveDefaultTables();
     }
   }, []);
+
+  const setAndSaveDefaultTables = () => {
+    const defaultTables: TableItem[] = [
+      { id: '1', number: '1', status: 'Tersedia' },
+      { id: '2', number: '2', status: 'Tersedia' },
+      { id: '3', number: '3', status: 'Tersedia' },
+      { id: '4', number: '4', status: 'Tersedia' },
+      { id: '5', number: '5', status: 'Tersedia' },
+    ];
+    setDaftarMeja(defaultTables);
+    localStorage.setItem('rjresto_tables', JSON.stringify(defaultTables));
+  };
 
   const tambahPesanan = (menu: MenuItem) => {
     if (menu.tersedia === false) return alert('Menu ini sedang kosong/habis!');
@@ -331,7 +352,7 @@ export default function KasirPage() {
                       <select
                         value={nomorMeja}
                         onChange={(e) => setNomorMeja(e.target.value)}
-                        className="w-full bg-slate-900 border border-slate-800 px-2.5 py-1.5 rounded-lg text-white focus:outline-none focus:border-amber-500"
+                        className="w-full bg-slate-900 border border-slate-800 px-2.5 py-2 rounded-lg text-white focus:outline-none focus:border-amber-500"
                       >
                         <option value="">-- Pilih Nomor Meja --</option>
                         {daftarMeja.map((meja) => (
@@ -346,7 +367,7 @@ export default function KasirPage() {
                     <select
                       value={statusPesanan}
                       onChange={(e) => setStatusPesanan(e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-800 px-2.5 py-1.5 rounded-lg text-white focus:outline-none focus:border-amber-500"
+                      className="w-full bg-slate-900 border border-slate-800 px-2.5 py-2 rounded-lg text-white focus:outline-none focus:border-amber-500"
                     >
                       <option value="Pending">Pending</option>
                       <option value="Di Proses">Di Proses</option>
