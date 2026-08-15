@@ -36,6 +36,7 @@ export default function KasirPage() {
   const [tipePesanan, setTipePesanan] = useState<'Dine In' | 'Take Away'>('Dine In');
   const [nomorMeja, setNomorMeja] = useState('');
   const [statusPesanan, setStatusPesanan] = useState('Pending');
+  const [namaKasir, setNamaKasir] = useState('Kasir 1');
 
   useEffect(() => {
     // Inisialisasi Menu
@@ -55,7 +56,7 @@ export default function KasirPage() {
       localStorage.setItem('rjresto_menu', JSON.stringify(defaultMenu));
     }
 
-    // Inisialisasi Meja (Default otomatis jika kosong agar tidak kosong di dropdown)
+    // Inisialisasi Meja
     const savedTables = localStorage.getItem('rjresto_tables');
     if (savedTables) {
       try {
@@ -71,15 +72,27 @@ export default function KasirPage() {
     } else {
       setAndSaveDefaultTables();
     }
+
+    // Ambil nama kasir / akun login jika tersedia di localStorage
+    const savedAccount = localStorage.getItem('rjresto_current_account');
+    if (savedAccount) {
+      try {
+        const acc = JSON.parse(savedAccount);
+        if (acc.nama) setNamaKasir(acc.nama);
+      } catch (e) {
+        // fallback
+      }
+    }
   }, []);
 
   const setAndSaveDefaultTables = () => {
     const defaultTables: TableItem[] = [
-      { id: '1', number: '1', status: 'Tersedia' },
-      { id: '2', number: '2', status: 'Tersedia' },
-      { id: '3', number: '3', status: 'Tersedia' },
-      { id: '4', number: '4', status: 'Tersedia' },
-      { id: '5', number: '5', status: 'Tersedia' },
+      { id: '1', number: '1', status: 'Kosong' },
+      { id: '2', number: '2', status: 'Kosong' },
+      { id: '3', number: '3', status: 'Kosong' },
+      { id: '4', number: '4', status: 'Kosong' },
+      { id: '5', number: '5', status: 'Kosong' },
+      { id: '6', number: '6', status: 'Kosong' },
     ];
     setDaftarMeja(defaultTables);
     localStorage.setItem('rjresto_tables', JSON.stringify(defaultTables));
@@ -134,6 +147,7 @@ export default function KasirPage() {
             <hr/>
             <p>ID Transaksi : ${tx.id}</p>
             <p>Tanggal      : ${tx.date} ${tx.time}</p>
+            <p>Kasir/Staff  : ${tx.namaKasir}</p>
             <p>Tipe Pesanan : ${tx.tipePesanan} ${tx.tipePesanan === 'Dine In' ? `(Meja ${tx.nomorMeja})` : ''}</p>
             <p>Status       : ${tx.statusPesanan}</p>
             <p>Metode Bayar : ${tx.metode}</p>
@@ -193,6 +207,7 @@ export default function KasirPage() {
       tipePesanan,
       nomorMeja: tipePesanan === 'Dine In' ? nomorMeja : '-',
       statusPesanan,
+      namaKasir,
       items: pesanan,
       status: 'Berhasil (Kasir)'
     };
@@ -207,7 +222,7 @@ export default function KasirPage() {
     const updatedTransactions = [newTx, ...existingTransactions];
     localStorage.setItem('rjresto_transactions', JSON.stringify(updatedTransactions));
 
-    // Sinkronisasi status meja menjadi Terisi di Manajemen Meja
+    // Sinkronisasi status meja langsung ke Manajemen Meja (rjresto_tables) menjadi 'Terisi'
     if (tipePesanan === 'Dine In' && nomorMeja) {
       try {
         const savedTables = localStorage.getItem('rjresto_tables');
@@ -346,6 +361,17 @@ export default function KasirPage() {
 
                 <div className="space-y-3 mb-4 bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs">
                   <div>
+                    <span className="text-slate-400 block mb-1">Nama Kasir / Staff</span>
+                    <input
+                      type="text"
+                      value={namaKasir}
+                      onChange={(e) => setNamaKasir(e.target.value)}
+                      placeholder="Nama kasir..."
+                      className="w-full bg-slate-900 border border-slate-800 px-2.5 py-2 rounded-lg text-white focus:outline-none focus:border-amber-500 font-medium"
+                    />
+                  </div>
+
+                  <div>
                     <span className="text-slate-400 block mb-1">Tipe Pesanan</span>
                     <div className="grid grid-cols-2 gap-2">
                       <button
@@ -398,7 +424,7 @@ export default function KasirPage() {
                     Belum ada menu yang dipilih.
                   </p>
                 ) : (
-                  <div className="space-y-2.5 max-h-[200px] overflow-y-auto pr-1">
+                  <div className="space-y-2.5 max-h-[170px] overflow-y-auto pr-1">
                     {pesanan.map((item) => (
                       <div key={item.id} className="flex justify-between items-center bg-slate-950 p-2.5 rounded-xl border border-slate-800">
                         <div>
