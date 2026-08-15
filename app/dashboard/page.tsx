@@ -25,6 +25,8 @@ interface Transaction {
   nomorMeja: string;
   statusPesanan: string;
   status: string;
+  namaKasir?: string;       // Properti baru untuk nama kasir
+  namaPelanggan?: string;   // Properti baru untuk nama pelanggan (pesanan mandiri)
   items: CartItem[];
 }
 
@@ -109,6 +111,8 @@ export default function DashboardPage() {
             <hr/>
             <p>ID Transaksi : ${tx.id}</p>
             <p>Tanggal      : ${tx.date} ${tx.time}</p>
+            <p>Kasir/Staff  : ${tx.namaKasir || 'Kasir Utama'}</p>
+            ${tx.namaPelanggan ? `<p>Pelanggan  : ${tx.namaPelanggan} (Mandiri)</p>` : ''}
             <p>Tipe Pesanan : ${tx.tipePesanan || 'Dine In'} ${tx.nomorMeja && tx.nomorMeja !== '-' ? `(Meja ${tx.nomorMeja})` : ''}</p>
             <p>Status       : ${tx.statusPesanan || tx.status || 'Berhasil'}</p>
             <p>Metode Bayar : ${tx.metode || 'Tunai'}</p>
@@ -236,7 +240,7 @@ export default function DashboardPage() {
             <div className="p-6 border-b border-slate-800 flex items-center justify-between">
               <h3 className="font-bold text-lg text-white">Riwayat Transaksi</h3>
               <span className="text-xs bg-slate-800 text-slate-300 px-3 py-1.5 rounded-lg font-medium">
-                Data Sinkron dengan Kasir POS
+                Data Sinkron dengan Kasir POS & Pemesanan Mandiri
               </span>
             </div>
             
@@ -246,6 +250,7 @@ export default function DashboardPage() {
                   <tr className="bg-slate-950/50 text-slate-400 uppercase text-xs tracking-wider border-b border-slate-800">
                     <th className="py-4 px-6 font-semibold">ID Transaksi</th>
                     <th className="py-4 px-6 font-semibold">Waktu / Tipe</th>
+                    <th className="py-4 px-6 font-semibold">Kasir & Pelanggan</th>
                     <th className="py-4 px-6 font-semibold">Item</th>
                     <th className="py-4 px-6 font-semibold">Total</th>
                     <th className="py-4 px-6 font-semibold text-center">Status</th>
@@ -255,7 +260,7 @@ export default function DashboardPage() {
                 <tbody className="divide-y divide-slate-800 text-sm">
                   {filteredData.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="text-center py-10 text-slate-400">
+                      <td colSpan={7} className="text-center py-10 text-slate-400">
                         Tidak ada transaksi yang cocok dengan filter atau belum ada data.
                       </td>
                     </tr>
@@ -271,6 +276,18 @@ export default function DashboardPage() {
                           <div className="text-xs text-amber-400">
                             {tx.tipePesanan || 'Dine In'} {tx.nomorMeja && tx.nomorMeja !== '-' ? `(Meja ${tx.nomorMeja})` : ''}
                           </div>
+                        </td>
+                        <td className="py-4 px-6">
+                          <div className="font-semibold text-white">
+                            👤 Kasir: <span className="text-amber-400">{tx.namaKasir || 'Kasir Utama'}</span>
+                          </div>
+                          {tx.namaPelanggan ? (
+                            <div className="mt-1 inline-flex items-center gap-1.5 px-2 py-0.5 bg-blue-500/10 text-blue-400 rounded-md border border-blue-500/20 text-xs font-medium">
+                              🏷️ Pelanggan: {tx.namaPelanggan} <span className="text-[10px] bg-blue-500/20 px-1 rounded text-blue-300">(Mandiri)</span>
+                            </div>
+                          ) : (
+                            <div className="text-slate-500 text-xs mt-0.5 italic">Pesanan Langsung POS</div>
+                          )}
                         </td>
                         <td className="py-4 px-6 text-slate-300">{tx.itemsCount} Item</td>
                         <td className="py-4 px-6 font-bold text-amber-400">Rp {(tx.total || 0).toLocaleString('id-ID')}</td>
