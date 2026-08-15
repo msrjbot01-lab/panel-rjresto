@@ -1,0 +1,332 @@
+'use client';
+import { useState, useEffect } from 'react';
+import Link from 'next/link';
+import Sidebar from '@/app/components/Sidebar';
+
+interface MenuItem {
+  id: number;
+  nama: string;
+  harga: number;
+  kategori: string;
+  deskripsi?: string;
+  tersedia?: boolean;
+}
+
+interface CartItem extends MenuItem {
+  qty: number;
+}
+
+export default function KasirPage() {
+  const [daftarMenu, setDaftarMenu] = useState<MenuItem[]>([]);
+  const [pesanan, setPesanan] = useState<CartItem[]>([]);
+  const [selectedKategori, setSelectedKategori] = useState('Semua');
+  const [searchTerm, setSearchTerm] = useState('');
+  
+  const [metodePembayaran, setMetodePembayaran] = useState('Tunai');
+  const [diskonPersen, setDiskonPersen] = useState(0);
+  const [uangDibayar, setUangDibayar] = useState('');
+
+  useEffect(() => {
+    const savedMenu = localStorage.getItem('rjresto_menu');
+    if (savedMenu) {
+      try {
+        setDaftarMenu(JSON.parse(savedMenu));
+      } catch (e) {
+        console.error("Gagal parsing menu", e);
+      }
+    } else {
+      const defaultMenu: MenuItem[] = [
+        { id: 1, nama: 'Nasi Goreng Spesial', harga: 25000, kategori: 'Makanan', tersedia: true },
+        { id: 4, nama: 'Es Teh Manis', harga: 5000, kategori: 'Minuman', tersedia: true },
+      ];
+      setDaftarMenu(defaultMenu);
+      localStorage.setItem('rjresto_menu', JSON.stringify(defaultMenu));
+    }
+  }, []);
+
+  const tambahPesanan = (menu: MenuItem) => {
+    if (menu.tersedia === false) return alert('Menu ini sedang kosong/habis!');
+    setPesanan((prev) => {
+      const existing = prev.find((item) => item.id === menu.id);
+      if (existing) {
+        return prev.map((item) =>
+          item.id === menu.id ? { ...item, qty: item.qty + 1 } : item
+        );
+      }
+      return [...prev, { ...menu, qty: 1 }];
+    });
+  };
+
+  const ubahQty = (id: number, delta: number) => {
+    setPesanan((prev) =>
+      prev
+        .map((item) => (item.id === id ? { ...item, qty: item.qty + delta } : item))
+        .filter((item) => item.qty > 0)
+    );
+  };
+
+  const subtotalHarga = pesanan.reduce((total, item) => total + item.harga * item.qty, 0);
+  const nilaiDiskon = (subtotalHarga * diskonPersen) / 100;
+  const totalHarga = subtotalHarga - nilaiDiskon;
+  const kembalian = Number(uangDibayar) - totalHarga;
+
+  const prosesPembayaran = () => {
+    if (pesanan.length === 0) return alert('Keranjang masih kosong!');
+    if (metodePembayaran === 'Tunai' && Number(uangDibayar) < totalHarga) {
+      return alert('Jumlah uang tunai kurang dari total pembayaran!');
+    }
+
+    const totalItemsCount = pesanan.reduce((sum, item) => sum + item.qty, 0);
+
+    const newTx = {
+      id: 'TRX-' + Math.floor(100000 + Math.random() * 900000),
+      time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+      date: new Date().toLocaleDateString('id-ID'),
+      itemsCount: totalItemsCount,
+      total: totalHarga,
+      metode: metodePembayaran,
+      status: 'Berhasil (Kasir)'
+    };
+
+    let existingTransactions = [];
+    try {
+      existingTransactions = JSON.parse(localStorage.getItem('rjresto_transactions') || '[]');
+    } catch (e) {
+      existingTransactions = [];
+    }
+
+    const updatedTransactions = [newTx, ...existingTransactions];
+    localStorage.setItem('rjresto_transactions', JSON.stringify(updatedTransactions));
+
+    alert(`Pembayaran berhasil diproses! Metode: ${metodePembayaran}. Kembalian: Rp ${Math.max(0, kembalian).toLocaleString('id-ID')}`);
+    setPesanan([]);
+    setUangDibayar('');
+    setDiskonPersen(0);
+  };
+
+  const filteredMenu = daftarMenu.filter((menu) => {
+    const matchesCategory = selectedKategori === 'Semua' || menu.kategori === selectedKategori;
+    const matchesSearch = menu.nama.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesCategory && matchesSearch;
+  });
+
+  return (
+    <div className="min-h-screen bg-slate-950 flex flex-col md:flex-row">
+      <Sidebar />
+
+      <main className="flex-1 p-6 md:p-8 text-white overflow-y-auto">
+        <div className="max-w-7xl mx-auto space-y-6">
+          
+          <header className="border-b border-slate-800 pb-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+              <h1 className="text-2xl font-bold text-amber-400">RJResto - POS Kasir</h1>
+              <p className="text-sm text-slate-400">Sistem Kasir Utama Restoran</p>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <Link href="/menu" className="bg-slate-800 hover:bg-slate-700 border border-slate-700 px-4 py-2 rounded-xl text-sm font-semibold transition">
+                Kelola Menu
+              </Link>
+              <Link href="/meja" className="bg-slate-800 hover:bg-slate-700 border border-slate-700 px-4 py-2 rounded-xl text-sm font-semibold transition">
+                Kelola Meja
+              </Link>
+              <Link href="/dashboard" className="bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/30 px-4 py-2 rounded-xl text-sm font-semibold transition">
+                Lihat Dashboard &rarr;
+              </Link>
+            </div>
+          </header>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 space-y-4">
+              
+              <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl flex flex-col sm:flex-row justify-between items-center gap-3 shadow">
+                <div className="flex items-center gap-2 overflow-x-auto w-full sm:w-auto pb-2 sm:pb-0">
+                  {['Semua', 'Makanan', 'Minuman', 'Cemilan', 'Dessert'].map((kat) => (
+                    <button
+                      key={kat}
+                      onClick={() => setSelectedKategori(kat)}
+                      className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap ${
+                        selectedKategori === kat
+                          ? 'bg-amber-500 text-slate-900 shadow'
+                          : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                      }`}
+                    >
+                      {kat}
+                    </button>
+                  ))}
+                </div>
+                <div className="w-full sm:w-64">
+                  <input
+                    type="text"
+                    placeholder="Cari menu kasir..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 px-3.5 py-2 rounded-xl text-sm focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+              </div>
+
+              {filteredMenu.length === 0 ? (
+                <div className="bg-slate-900 border border-slate-800 p-12 rounded-2xl text-center text-slate-400 shadow">
+                  Tidak ada menu ditemukan. Silakan tambah menu melalui menu <Link href="/menu" className="text-amber-400 underline">Kelola Menu</Link>.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                  {filteredMenu.map((menu) => {
+                    const isHabis = menu.tersedia === false;
+                    return (
+                      <button
+                        key={menu.id}
+                        onClick={() => tambahPesanan(menu)}
+                        disabled={isHabis}
+                        className={`p-4 rounded-2xl text-left transition flex flex-col justify-between shadow border ${
+                          isHabis 
+                            ? 'bg-slate-900/40 border-slate-800 opacity-50 cursor-not-allowed' 
+                            : 'bg-slate-900 border-slate-800 hover:border-amber-500'
+                        }`}
+                      >
+                        <div>
+                          <div className="flex justify-between items-start">
+                            <span className="text-xs px-2 py-0.5 bg-slate-800 text-amber-300 rounded-md font-medium">
+                              {menu.kategori}
+                            </span>
+                            {isHabis && (
+                              <span className="text-xs px-2 py-0.5 bg-rose-500/20 text-rose-400 rounded-md font-bold">
+                                Habis
+                              </span>
+                            )}
+                          </div>
+                          <h3 className="font-semibold text-base mt-2 text-white">{menu.nama}</h3>
+                        </div>
+                        <p className="text-amber-400 font-bold mt-4">
+                          Rp {menu.harga.toLocaleString('id-ID')}
+                        </p>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl flex flex-col justify-between shadow-lg space-y-4">
+              <div>
+                <h2 className="text-lg font-semibold mb-3 border-b border-slate-800 pb-2 flex justify-between items-center">
+                  <span>Pesanan Saat Ini</span>
+                  <span className="text-xs text-amber-400 font-normal">{pesanan.length} item unik</span>
+                </h2>
+
+                {pesanan.length === 0 ? (
+                  <p className="text-slate-400 text-sm py-12 text-center bg-slate-950/40 rounded-xl border border-dashed border-slate-800">
+                    Belum ada menu yang dipilih. Silakan klik menu di samping.
+                  </p>
+                ) : (
+                  <div className="space-y-2.5 max-h-[240px] overflow-y-auto pr-1">
+                    {pesanan.map((item) => (
+                      <div key={item.id} className="flex justify-between items-center bg-slate-950 p-2.5 rounded-xl border border-slate-800">
+                        <div>
+                          <p className="font-medium text-xs text-white">{item.nama}</p>
+                          <p className="text-xs text-amber-400 font-semibold mt-0.5">
+                            Rp {(item.harga * item.qty).toLocaleString('id-ID')}
+                          </p>
+                        </div>
+                        <div className="flex items-center space-x-1.5">
+                          <button
+                            onClick={() => ubahQty(item.id, -1)}
+                            className="w-6 h-6 bg-slate-800 hover:bg-slate-700 rounded flex items-center justify-center font-bold text-white transition text-xs"
+                          >
+                            -
+                          </button>
+                          <span className="text-xs font-semibold w-5 text-center">{item.qty}</span>
+                          <button
+                            onClick={() => ubahQty(item.id, 1)}
+                            className="w-6 h-6 bg-slate-800 hover:bg-slate-700 rounded flex items-center justify-center font-bold text-white transition text-xs"
+                          >
+                            +
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {pesanan.length > 0 && (
+                <div className="space-y-3 pt-2 border-t border-slate-800 text-xs">
+                  <div className="flex justify-between text-slate-300">
+                    <span>Subtotal</span>
+                    <span>Rp {subtotalHarga.toLocaleString('id-ID')}</span>
+                  </div>
+
+                  <div className="flex justify-between items-center text-slate-300">
+                    <span>Diskon (%)</span>
+                    <select
+                      value={diskonPersen}
+                      onChange={(e) => setDiskonPersen(Number(e.target.value))}
+                      className="bg-slate-950 border border-slate-800 px-2 py-1 rounded-lg text-xs text-amber-400 focus:outline-none"
+                    >
+                      <option value={0}>0% (Tanpa Diskon)</option>
+                      <option value={10}>10%</option>
+                      <option value={15}>15%</option>
+                      <option value={20}>20%</option>
+                      <option value={50}>50%</option>
+                    </select>
+                  </div>
+
+                  <div className="flex justify-between items-center text-slate-300">
+                    <span>Metode Bayar</span>
+                    <div className="flex gap-1.5">
+                      {['Tunai', 'QRIS', 'Debit'].map((metode) => (
+                        <button
+                          key={metode}
+                          onClick={() => setMetodePembayaran(metode)}
+                          className={`px-2.5 py-1 rounded-lg font-bold transition text-xs ${
+                            metodePembayaran === metode
+                              ? 'bg-amber-500 text-slate-900'
+                              : 'bg-slate-800 text-slate-300'
+                          }`}
+                        >
+                          {metode}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {metodePembayaran === 'Tunai' && (
+                    <div className="space-y-1 pt-1">
+                      <span className="text-slate-400">Uang Diterima (Rp)</span>
+                      <input
+                        type="number"
+                        placeholder="Contoh: 50000"
+                        value={uangDibayar}
+                        onChange={(e) => setUangDibayar(e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-800 px-3 py-1.5 rounded-xl text-xs focus:outline-none focus:border-amber-500 text-amber-300 font-semibold"
+                      />
+                      {Number(uangDibayar) >= totalHarga && (
+                        <p className="text-emerald-400 text-right mt-0.5">
+                          Kembalian: Rp {kembalian.toLocaleString('id-ID')}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="border-t border-slate-800 pt-3">
+                <div className="flex justify-between items-center mb-3 text-base font-bold">
+                  <span>Total Akhir:</span>
+                  <span className="text-amber-400">Rp {totalHarga.toLocaleString('id-ID')}</span>
+                </div>
+                <button
+                  onClick={prosesPembayaran}
+                  className="w-full bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold py-3 rounded-xl transition shadow-lg text-sm"
+                >
+                  Proses Pembayaran
+                </button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}
