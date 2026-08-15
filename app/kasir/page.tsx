@@ -18,7 +18,7 @@ interface CartItem extends MenuItem {
 
 interface TableItem {
   id: string;
-  number: string;
+  nomor: string;
   status: string;
 }
 
@@ -56,8 +56,8 @@ export default function KasirPage() {
       localStorage.setItem('rjresto_menu', JSON.stringify(defaultMenu));
     }
 
-    // 2. Inisialisasi 6 Meja default jika belum ada
-    const savedTables = localStorage.getItem('rjresto_tables');
+    // 2. Inisialisasi 6 Meja default jika belum ada (menggunakan key 'rjresto_meja')
+    const savedTables = localStorage.getItem('rjresto_meja');
     if (savedTables) {
       try {
         const parsedTables = JSON.parse(savedTables);
@@ -110,15 +110,15 @@ export default function KasirPage() {
 
   const setAndSaveDefaultTables = () => {
     const defaultTables: TableItem[] = [
-      { id: '1', number: '1', status: 'Kosong' },
-      { id: '2', number: '2', status: 'Kosong' },
-      { id: '3', number: '3', status: 'Kosong' },
-      { id: '4', number: '4', status: 'Kosong' },
-      { id: '5', number: '5', status: 'Kosong' },
-      { id: '6', number: '6', status: 'Kosong' },
+      { id: '1', nomor: '1', status: 'Kosong' },
+      { id: '2', nomor: '2', status: 'Kosong' },
+      { id: '3', nomor: '3', status: 'Kosong' },
+      { id: '4', nomor: '4', status: 'Kosong' },
+      { id: '5', nomor: '5', status: 'Kosong' },
+      { id: '6', nomor: '6', status: 'Kosong' },
     ];
     setDaftarMeja(defaultTables);
-    localStorage.setItem('rjresto_tables', JSON.stringify(defaultTables));
+    localStorage.setItem('rjresto_meja', JSON.stringify(defaultTables));
   };
 
   const tambahPesanan = (menu: MenuItem) => {
@@ -245,24 +245,24 @@ export default function KasirPage() {
     const updatedTransactions = [newTx, ...existingTransactions];
     localStorage.setItem('rjresto_transactions', JSON.stringify(updatedTransactions));
 
-    // Sinkronisasi status meja langsung ke rjresto_tables agar Manajemen Meja ikut terupdate menjadi 'Terisi'
+    // Sinkronisasi status meja langsung ke rjresto_meja agar Manajemen Meja ikut terupdate menjadi 'Terisi'
     if (tipePesanan === 'Dine In' && nomorMeja) {
       try {
-        const savedTables = localStorage.getItem('rjresto_tables');
+        const savedTables = localStorage.getItem('rjresto_meja');
         let tablesParsed = savedTables ? JSON.parse(savedTables) : [
-          { id: '1', number: '1', status: 'Kosong' },
-          { id: '2', number: '2', status: 'Kosong' },
-          { id: '3', number: '3', status: 'Kosong' },
-          { id: '4', number: '4', status: 'Kosong' },
-          { id: '5', number: '5', status: 'Kosong' },
-          { id: '6', number: '6', status: 'Kosong' },
+          { id: '1', nomor: '1', status: 'Kosong' },
+          { id: '2', nomor: '2', status: 'Kosong' },
+          { id: '3', nomor: '3', status: 'Kosong' },
+          { id: '4', nomor: '4', status: 'Kosong' },
+          { id: '5', nomor: '5', status: 'Kosong' },
+          { id: '6', nomor: '6', status: 'Kosong' },
         ];
 
         const updatedTables = tablesParsed.map((t: any) => 
-          String(t.number) === String(nomorMeja) ? { ...t, status: 'Terisi' } : t
+          String(t.nomor) === String(nomorMeja) ? { ...t, status: 'Terisi' } : t
         );
 
-        localStorage.setItem('rjresto_tables', JSON.stringify(updatedTables));
+        localStorage.setItem('rjresto_meja', JSON.stringify(updatedTables));
         setDaftarMeja(updatedTables);
       } catch (e) {
         console.error("Gagal memperbarui status meja", e);
@@ -428,8 +428,8 @@ export default function KasirPage() {
                       >
                         <option value="">-- Pilih Nomor Meja --</option>
                         {daftarMeja.map((meja) => (
-                          <option key={meja.id} value={meja.number}>
-                            Meja {meja.number} ({meja.status})
+                          <option key={meja.id} value={meja.nomor}>
+                            Meja {meja.nomor} ({meja.status})
                           </option>
                         ))}
                       </select>
