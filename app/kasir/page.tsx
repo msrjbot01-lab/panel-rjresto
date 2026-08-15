@@ -36,10 +36,10 @@ export default function KasirPage() {
   const [tipePesanan, setTipePesanan] = useState<'Dine In' | 'Take Away'>('Dine In');
   const [nomorMeja, setNomorMeja] = useState('');
   const [statusPesanan, setStatusPesanan] = useState('Pending');
-  const [namaKasir, setNamaKasir] = useState('Kasir 1');
+  const [namaKasir, setNamaKasir] = useState('Kasir Utama');
 
   useEffect(() => {
-    // Inisialisasi Menu
+    // 1. Inisialisasi Menu
     const savedMenu = localStorage.getItem('rjresto_menu');
     if (savedMenu) {
       try {
@@ -56,7 +56,7 @@ export default function KasirPage() {
       localStorage.setItem('rjresto_menu', JSON.stringify(defaultMenu));
     }
 
-    // Inisialisasi Meja
+    // 2. Inisialisasi 6 Meja default jika belum ada
     const savedTables = localStorage.getItem('rjresto_tables');
     if (savedTables) {
       try {
@@ -73,16 +73,39 @@ export default function KasirPage() {
       setAndSaveDefaultTables();
     }
 
-    // Ambil nama kasir / akun login jika tersedia di localStorage
-    const savedAccount = localStorage.getItem('rjresto_current_account');
-    if (savedAccount) {
+    // 3. Ambil Nama Kasir otomatis dari akun login panel
+    const loadLoggedInUser = () => {
       try {
-        const acc = JSON.parse(savedAccount);
-        if (acc.nama) setNamaKasir(acc.nama);
+        const currentAccount = localStorage.getItem('rjresto_current_account');
+        if (currentAccount) {
+          const acc = JSON.parse(currentAccount);
+          if (acc.nama) {
+            setNamaKasir(acc.nama);
+            return;
+          }
+          if (acc.username) {
+            setNamaKasir(acc.username);
+            return;
+          }
+        }
+
+        const generalUser = localStorage.getItem('rjresto_user');
+        if (generalUser) {
+          const usr = JSON.parse(generalUser);
+          if (usr.nama) {
+            setNamaKasir(usr.nama);
+            return;
+          }
+          if (usr.username) {
+            setNamaKasir(usr.username);
+            return;
+          }
+        }
       } catch (e) {
-        // fallback
+        console.error("Gagal memuat akun login", e);
       }
-    }
+    };
+    loadLoggedInUser();
   }, []);
 
   const setAndSaveDefaultTables = () => {
@@ -222,18 +245,25 @@ export default function KasirPage() {
     const updatedTransactions = [newTx, ...existingTransactions];
     localStorage.setItem('rjresto_transactions', JSON.stringify(updatedTransactions));
 
-    // Sinkronisasi status meja langsung ke Manajemen Meja (rjresto_tables) menjadi 'Terisi'
+    // Sinkronisasi status meja langsung ke rjresto_tables agar Manajemen Meja ikut terupdate menjadi 'Terisi'
     if (tipePesanan === 'Dine In' && nomorMeja) {
       try {
         const savedTables = localStorage.getItem('rjresto_tables');
-        if (savedTables) {
-          let tablesParsed = JSON.parse(savedTables);
-          const updatedTables = tablesParsed.map((t: any) => 
-            t.number === nomorMeja ? { ...t, status: 'Terisi' } : t
-          );
-          localStorage.setItem('rjresto_tables', JSON.stringify(updatedTables));
-          setDaftarMeja(updatedTables);
-        }
+        let tablesParsed = savedTables ? JSON.parse(savedTables) : [
+          { id: '1', number: '1', status: 'Kosong' },
+          { id: '2', number: '2', status: 'Kosong' },
+          { id: '3', number: '3', status: 'Kosong' },
+          { id: '4', number: '4', status: 'Kosong' },
+          { id: '5', number: '5', status: 'Kosong' },
+          { id: '6', number: '6', status: 'Kosong' },
+        ];
+
+        const updatedTables = tablesParsed.map((t: any) => 
+          String(t.number) === String(nomorMeja) ? { ...t, status: 'Terisi' } : t
+        );
+
+        localStorage.setItem('rjresto_tables', JSON.stringify(updatedTables));
+        setDaftarMeja(updatedTables);
       } catch (e) {
         console.error("Gagal memperbarui status meja", e);
       }
@@ -361,13 +391,12 @@ export default function KasirPage() {
 
                 <div className="space-y-3 mb-4 bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs">
                   <div>
-                    <span className="text-slate-400 block mb-1">Nama Kasir / Staff</span>
+                    <span className="text-slate-400 block mb-1">Kasir / Staff (Login)</span>
                     <input
                       type="text"
                       value={namaKasir}
-                      onChange={(e) => setNamaKasir(e.target.value)}
-                      placeholder="Nama kasir..."
-                      className="w-full bg-slate-900 border border-slate-800 px-2.5 py-2 rounded-lg text-white focus:outline-none focus:border-amber-500 font-medium"
+                      readOnly
+                      className="w-full bg-slate-900 border border-slate-800 px-2.5 py-2 rounded-lg text-amber-300 font-semibold focus:outline-none cursor-not-allowed"
                     />
                   </div>
 
@@ -399,7 +428,9 @@ export default function KasirPage() {
                       >
                         <option value="">-- Pilih Nomor Meja --</option>
                         {daftarMeja.map((meja) => (
-                          <option key={meja.id} value={meja.number}>Meja {meja.number} ({meja.status})</option>
+                          <option key={meja.id} value={meja.number}>
+                            Meja {meja.number} ({meja.status})
+                          </option>
                         ))}
                       </select>
                     </div>
