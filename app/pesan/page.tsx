@@ -72,8 +72,19 @@ export default function PesanPelangganPage() {
       time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
       date: new Date().toLocaleDateString('id-ID'),
       itemsCount: totalItemsCount,
+      subtotal: totalHarga,
+      diskonPersen: 0,
+      nilaiDiskon: 0,
       total: totalHarga,
-      status: `Pending (Meja ${nomorMeja} - ${namaPelanggan})`
+      uangDibayar: totalHarga,
+      kembalian: 0,
+      metode: 'Tunai',
+      tipePesanan: 'Dine In',
+      nomorMeja: nomorMeja,
+      statusPesanan: 'Pending',
+      status: 'Pending',
+      namaPelanggan: namaPelanggan, // <-- Disimpan eksplisit agar terbaca di Dashboard
+      items: pesanan                  // <-- Disimpan agar detail item dan struk tercetak benar
     };
 
     // 1. Masukkan ke localStorage transaksi agar terbaca di Dashboard dan Kasir
@@ -113,14 +124,11 @@ export default function PesanPelangganPage() {
 
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col md:flex-row">
-      {/* Sidebar Navigasi Kiri (Menggunakan komponen eksternal) */}
       <Sidebar />
 
-      {/* Konten Utama */}
       <main className="flex-1 p-6 md:p-8 text-white overflow-y-auto">
         <div className="max-w-6xl mx-auto space-y-6">
           
-          {/* Header Storefront */}
           <div className="bg-gradient-to-r from-amber-500 to-orange-600 text-slate-950 p-6 rounded-2xl shadow-lg flex flex-col md:flex-row justify-between items-center gap-4">
             <div>
               <h1 className="text-2xl font-bold">Pemesanan Mandiri - RJResto</h1>
@@ -135,7 +143,6 @@ export default function PesanPelangganPage() {
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             
-            {/* Daftar Menu Pelanggan */}
             <div className="lg:col-span-2 space-y-4">
               <h2 className="text-lg font-bold text-slate-200">Menu Restoran</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -181,7 +188,6 @@ export default function PesanPelangganPage() {
               </div>
             </div>
 
-            {/* Form Checkout / Keranjang Pelanggan */}
             <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl flex flex-col justify-between shadow-lg">
               <form onSubmit={kirimPesanan} className="space-y-4">
                 <h2 className="text-lg font-bold border-b border-slate-800 pb-3">Keranjang Pesanan</h2>
