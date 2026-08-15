@@ -112,7 +112,7 @@ export default function DashboardPage() {
             <p>ID Transaksi : ${tx.id}</p>
             <p>Tanggal      : ${tx.date} ${tx.time}</p>
             <p>Kasir/Staff  : ${tx.namaKasir || 'Kasir Utama'}</p>
-            ${tx.namaPelanggan ? `<p>Pelanggan  : ${tx.namaPelanggan} (Mandiri)</p>` : ''}
+            ${tx.namaPelanggan ? `<p>Pelanggan  : ${tx.namaPelanggan}</p>` : ''}
             <p>Tipe Pesanan : ${tx.tipePesanan || 'Dine In'} ${tx.nomorMeja && tx.nomorMeja !== '-' ? `(Meja ${tx.nomorMeja})` : ''}</p>
             <p>Status       : ${tx.statusPesanan || tx.status || 'Berhasil'}</p>
             <p>Metode Bayar : ${tx.metode || 'Tunai'}</p>
