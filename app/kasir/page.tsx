@@ -37,7 +37,7 @@ export default function KasirPage() {
   const [tipePesanan, setTipePesanan] = useState<'Dine In' | 'Take Away'>('Dine In');
   const [nomorMeja, setNomorMeja] = useState('');
   const [statusPesanan, setStatusPesanan] = useState('Pending');
-  const [namaKasir, setNamaKasir] = useState('Kasir Utama');
+  const [namaKasir, setNamaKasir] = useState('Marie');
 
   useEffect(() => {
     // 1. Inisialisasi Menu
@@ -93,34 +93,43 @@ export default function KasirPage() {
     };
     loadTables();
 
-    // 3. Ambil Nama Kasir otomatis (Hanya namanya saja, contoh: "Marie")
+    // 3. Ambil Nama Kasir otomatis dari berbagai kemungkinan Key localStorage di aplikasi Anda
     const loadLoggedInUser = () => {
       const possibleAccountKeys = [
         'rjresto_current_account', 
         'rjresto_user', 
         'current_user', 
         'user_login',
-        'activeUser'
+        'activeUser',
+        'loggedUser',
+        'rjresto_logged_user',
+        'akun_aktif'
       ];
 
       for (const key of possibleAccountKeys) {
         const val = localStorage.getItem(key);
         if (val) {
           try {
+            // Cek apakah format JSON
             const obj = JSON.parse(val);
-            if (obj && (obj.nama || obj.name || obj.username)) {
-              let namaRaw = obj.nama || obj.name || obj.username;
-              const namaBersih = namaRaw.split('(')[0].trim();
-              setNamaKasir(namaBersih);
+            if (obj) {
+              const nameValue = obj.nama || obj.name || obj.username || obj.fullname;
+              if (nameValue) {
+                // Ambil hanya namanya saja sebelum tanda kurung '('
+                const cleanName = String(nameValue).split('(')[0].trim();
+                if (cleanName) {
+                  setNamaKasir(cleanName);
+                  return;
+                }
+              }
+            }
+          } catch (e) {
+            // Jika berupa string biasa
+            const cleanName = val.split('(')[0].trim();
+            if (cleanName) {
+              setNamaKasir(cleanName);
               return;
             }
-            const namaBersih = val.split('(')[0].trim();
-            setNamaKasir(namaBersih);
-            return;
-          } catch (e) {
-            const namaBersih = val.split('(')[0].trim();
-            setNamaKasir(namaBersih);
-            return;
           }
         }
       }
@@ -237,7 +246,7 @@ export default function KasirPage() {
       tipePesanan,
       nomorMeja: tipePesanan === 'Dine In' ? nomorMeja : '-',
       statusPesanan,
-      namaKasir,
+      namaKasir: namaKasir || 'Kasir',
       items: pesanan,
       status: 'Berhasil (Kasir)'
     };
@@ -402,8 +411,9 @@ export default function KasirPage() {
                     <input
                       type="text"
                       value={namaKasir}
-                      readOnly
-                      className="w-full bg-slate-900 border border-slate-800 px-2.5 py-2 rounded-lg text-amber-300 font-semibold focus:outline-none cursor-not-allowed"
+                      onChange={(e) => setNamaKasir(e.target.value)}
+                      placeholder="Nama Kasir"
+                      className="w-full bg-slate-900 border border-slate-800 px-2.5 py-2 rounded-lg text-amber-300 font-semibold focus:outline-none focus:border-amber-500"
                     />
                   </div>
 
@@ -524,6 +534,7 @@ export default function KasirPage() {
                       {['Tunai', 'QRIS', 'Debit'].map((metode) => (
                         <button
                           key={metode}
+                          onChange={() => setMetodePembayaran(metode)}
                           onClick={() => setMetodePembayaran(metode)}
                           className={`px-2 py-1 rounded-lg font-bold transition text-xs ${
                             metodePembayaran === metode
