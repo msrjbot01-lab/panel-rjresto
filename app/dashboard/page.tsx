@@ -101,7 +101,7 @@ export default function DashboardPage() {
     roleLower === 'master' || 
     roleLower === 'super admin' || 
     roleLower === 'admin' || 
-    nameLower === 'matthew' || 
+    nameLower === 'Demo' || 
     nameLower === 'admin';
 
   const clearData = async () => {

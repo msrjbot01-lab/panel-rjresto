@@ -58,7 +58,7 @@ function Sidebar() {
           roleLower === 'master' || 
           roleLower === 'super admin' || 
           roleLower === 'admin' || 
-          namaLower === 'matthew' || 
+          namaLower === 'Demo' || 
           namaLower === 'admin'
         ) {
           setAllowedMenus(defaultMenus);

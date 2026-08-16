@@ -22,7 +22,7 @@ export async function GET() {
     // Memasukkan data uji coba ke koleksi standar
     await setDoc(doc(db, 'menu', '1'), { nama: 'Nasi Goreng', harga: 25000 });
     await setDoc(doc(db, 'meja', '1'), { nomor: '1', status: 'Kosong' });
-    await setDoc(doc(db, 'users', 'matthew'), { username: 'matthew', role: 'master', password: 'matthewsel18' });
+    await setDoc(doc(db, 'users', 'Demo'), { username: 'demo', role: 'master', password: 'demo123' });
 
     return NextResponse.json({ success: true, message: 'Data berhasil masuk!' });
   } catch (error: any) {
