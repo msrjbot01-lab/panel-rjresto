@@ -5,20 +5,8 @@ export const metadata: Metadata = {
   title: 'RJRestoDemo',
   description: 'Generate by RJSEO',
   icons: {
-    icon: [
-      {
-        url: '/favicon.png',
-        sizes: 'any',
-        type: 'image/png',
-      },
-    ],
-    apple: [
-      {
-        url: '/favicon.png',
-        sizes: '180x180',
-        type: 'image/png',
-      },
-    ],
+    icon: '/favicon.ico',
+    apple: '/favicon.ico',
   },
 };
 
