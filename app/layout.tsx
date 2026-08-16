@@ -3,7 +3,7 @@ import './globals.css';
 
 export const metadata: Metadata = {
   title: 'RJRestoDemo',
-  description: 'Sistem Manajemen Restoran',
+  description: 'Generate by RJSEO',
   icons: {
     icon: [
       {
