@@ -30,9 +30,9 @@ export default function UserSettingsPage() {
   const [karyawan, setKaryawan] = useState<Karyawan[]>([
     { 
       id: 1, 
-      nama: 'Matthew', 
+      nama: 'Demo', 
       role: 'Master', 
-      password: 'admin123',
+      password: 'demo123',
       status: 'Aktif',
       allowedMenus: ['/dashboard', '/kasir', '/menu', '/meja', '/pemesanan', '/settings/users', '/settings/system'] 
     }
