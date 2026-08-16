@@ -1,6 +1,30 @@
 'use client';
 import { useState, useEffect } from 'react';
-import Sidebar from '@/app/components/Sidebar';
+import Sidebar '@/app/components/Sidebar';
+// Import Firebase Firestore
+import { initializeApp, getApps, getApp } from 'firebase/app';
+import { 
+  getFirestore, 
+  collection, 
+  getDocs, 
+  doc, 
+  updateDoc, 
+  deleteDoc, 
+  query, 
+  orderBy 
+} from 'firebase/firestore';
+
+const firebaseConfig = {
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+};
+
+const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+const db = getFirestore(app);
 
 interface CartItem {
   id: number;
@@ -25,8 +49,8 @@ interface Transaction {
   nomorMeja: string;
   statusPesanan: string;
   status: string;
-  namaKasir?: string;       // Properti untuk nama kasir
-  namaPelanggan?: string;   // Properti untuk nama pelanggan (pesanan mandiri)
+  namaKasir?: string;       
+  namaPelanggan?: string;   
   items: CartItem[];
 }
 
@@ -36,30 +60,40 @@ export default function DashboardPage() {
   const [currentUserName, setCurrentUserName] = useState('Karyawan');
   const [currentUserRole, setCurrentUserRole] = useState('Master');
 
+  // Ambil sesi user dari localStorage (hanya untuk identifikasi role & nama di sisi klien)
   useEffect(() => {
     const currentUserStr = localStorage.getItem('rjresto_current_user');
     if (currentUserStr) {
       try {
         const user = JSON.parse(currentUserStr);
-        setCurrentUserName(user.nama || 'Karyawan');
+        setCurrentUserName(user.nama || user.username || 'Karyawan');
         setCurrentUserRole(user.role || 'Master');
       } catch (e) {
         console.error("Gagal parsing user session", e);
       }
     }
 
-    const saved = localStorage.getItem('rjresto_transactions');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
-          setTransactions(parsed);
-        }
-      } catch (e) {
-        console.error("Gagal parsing transaksi", e);
-      }
-    }
+    // Ambil data transaksi langsung dari Firestore
+    fetchTransactions();
   }, []);
+
+  const fetchTransactions = async () => {
+    try {
+      const q = query(collection(db, 'transactions'));
+      const querySnapshot = await getDocs(q);
+      const fetchedTx: Transaction[] = [];
+      querySnapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        fetchedTx.push({
+          id: docSnap.id,
+          ...data,
+        } as Transaction);
+      });
+      setTransactions(fetchedTx);
+    } catch (e) {
+      console.error("Gagal mengambil transaksi dari Firebase:", e);
+    }
+  };
 
   const roleLower = currentUserRole.trim().toLowerCase();
   const nameLower = currentUserName.trim().toLowerCase();
@@ -70,23 +104,45 @@ export default function DashboardPage() {
     nameLower === 'matthew' || 
     nameLower === 'admin';
 
-  const clearData = () => {
+  const clearData = async () => {
     if (!isMasterOrAdmin) {
       alert('Akses ditolak! Hanya Akun Master/Admin yang diizinkan mereset data.');
       return;
     }
-    if (confirm('Yakin ingin menghapus semua riwayat transaksi?')) {
-      localStorage.removeItem('rjresto_transactions');
-      setTransactions([]);
+    if (confirm('Yakin ingin menghapus semua riwayat transaksi dari database Firebase?')) {
+      try {
+        // Hapus semua dokumen transaksi di Firestore
+        const querySnapshot = await getDocs(collection(db, 'transactions'));
+        const deletePromises = querySnapshot.docs.map((document) => 
+          deleteDoc(doc(db, 'transactions', document.id))
+        );
+        await Promise.all(deletePromises);
+        setTransactions([]);
+        alert('Semua riwayat transaksi berhasil direset.');
+      } catch (e) {
+        console.error("Gagal menghapus data di Firebase:", e);
+        alert('Terjadi kesalahan saat menghapus data.');
+      }
     }
   };
 
-  const updateStatus = (id: string, newStatusPesanan: string, newStatus: string) => {
-    const updated = transactions.map((tx) =>
-      tx.id === id ? { ...tx, statusPesanan: newStatusPesanan, status: newStatus } : tx
-    );
-    setTransactions(updated);
-    localStorage.setItem('rjresto_transactions', JSON.stringify(updated));
+  const updateStatus = async (id: string, newStatusPesanan: string, newStatus: string) => {
+    try {
+      const txRef = doc(db, 'transactions', id);
+      await updateDoc(txRef, {
+        statusPesanan: newStatusPesanan,
+        status: newStatus
+      });
+
+      // Update state lokal agar langsung berubah tanpa perlu refresh
+      const updated = transactions.map((tx) =>
+        tx.id === id ? { ...tx, statusPesanan: newStatusPesanan, status: newStatus } : tx
+      );
+      setTransactions(updated);
+    } catch (e) {
+      console.error("Gagal memperbarui status di Firebase:", e);
+      alert('Gagal memperbarui status pesanan.');
+    }
   };
 
   const printReceipt = (tx: Transaction) => {
@@ -175,7 +231,7 @@ export default function DashboardPage() {
           <div className="flex flex-col md:flex-row md:items-center justify-between bg-gradient-to-r from-amber-500 to-orange-600 text-slate-900 p-6 rounded-2xl shadow-lg">
             <div>
               <h1 className="text-2xl font-bold">Dashboard RJResto</h1>
-              <p className="text-slate-900/80 text-sm mt-1">Ringkasan performa penjualan dan statistik operasional.</p>
+              <p className="text-slate-900/80 text-sm mt-1">Ringkasan performa penjualan dan statistik operasional (Database Firebase).</p>
             </div>
             <div className="mt-4 md:mt-0 flex items-center gap-3">
               <div className="bg-black/15 backdrop-blur-md px-4 py-2 rounded-xl text-sm font-semibold text-white">
@@ -238,10 +294,13 @@ export default function DashboardPage() {
 
           <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-lg">
             <div className="p-6 border-b border-slate-800 flex items-center justify-between">
-              <h3 className="font-bold text-lg text-white">Riwayat Transaksi</h3>
-              <span className="text-xs bg-slate-800 text-slate-300 px-3 py-1.5 rounded-lg font-medium">
-                Data Sinkron dengan Kasir POS & Pemesanan Mandiri
-              </span>
+              <h3 className="font-bold text-lg text-white">Riwayat Transaksi (Cloud Database)</h3>
+              <button 
+                onClick={fetchTransactions}
+                className="text-xs bg-slate-800 hover:bg-slate-700 text-amber-400 px-3 py-1.5 rounded-lg font-medium transition"
+              >
+                🔄 Refresh Data
+              </button>
             </div>
             
             <div className="overflow-x-auto">
@@ -261,7 +320,7 @@ export default function DashboardPage() {
                   {filteredData.length === 0 ? (
                     <tr>
                       <td colSpan={7} className="text-center py-10 text-slate-400">
-                        Tidak ada transaksi yang cocok dengan filter atau belum ada data.
+                        Tidak ada transaksi yang cocok dengan filter atau database masih kosong.
                       </td>
                     </tr>
                   ) : (

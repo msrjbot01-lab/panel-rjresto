@@ -1,10 +1,34 @@
 'use client';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import Sidebar from '@/app/components/Sidebar';
+import Sidebar '@/app/components/Sidebar';
+
+// Import Firebase Firestore
+import { initializeApp, getApps, getApp } from 'firebase/app';
+import { 
+  getFirestore, 
+  collection, 
+  getDocs, 
+  doc, 
+  setDoc, 
+  updateDoc, 
+  query 
+} from 'firebase/firestore';
+
+const firebaseConfig = {
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+};
+
+const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+const db = getFirestore(app);
 
 interface MenuItem {
-  id: number;
+  id: string | number;
   nama: string;
   harga: number;
   kategori: string;
@@ -40,62 +64,71 @@ export default function KasirPage() {
   const [namaKasir, setNamaKasir] = useState('Marie');
 
   useEffect(() => {
-    // 1. Inisialisasi Menu
-    const savedMenu = localStorage.getItem('rjresto_menu');
-    if (savedMenu) {
+    // 1. Ambil Data Menu dari Firestore & Fallback localStorage
+    const fetchMenuAndTables = async () => {
       try {
-        setDaftarMenu(JSON.parse(savedMenu));
-      } catch (e) {
-        console.error("Gagal parsing menu", e);
-      }
-    } else {
-      const defaultMenu: MenuItem[] = [
-        { id: 1, nama: 'Nasi Goreng Spesial', harga: 25000, kategori: 'Makanan', tersedia: true },
-        { id: 4, nama: 'Es Teh Manis', harga: 5000, kategori: 'Minuman', tersedia: true },
-      ];
-      setDaftarMenu(defaultMenu);
-      localStorage.setItem('rjresto_menu', JSON.stringify(defaultMenu));
-    }
+        // Ambil Menu dari Firestore
+        const menuQuery = query(collection(db, 'menu'));
+        const menuSnapshot = await getDocs(menuQuery);
+        const fetchedMenu: MenuItem[] = [];
+        menuSnapshot.forEach((docSnap) => {
+          fetchedMenu.push({ id: docSnap.id, ...docSnap.data() } as MenuItem);
+        });
 
-    // 2. Inisialisasi Meja dari Manajemen Meja
-    const loadTables = () => {
-      const possibleKeys = ['rjresto_meja', 'rjresto_tables', 'mejaResto', 'tables'];
-      let loaded = false;
-
-      for (const key of possibleKeys) {
-        const data = localStorage.getItem(key);
-        if (data) {
-          try {
-            const parsed = JSON.parse(data);
-            if (Array.isArray(parsed) && parsed.length > 0) {
-              setDaftarMeja(parsed);
-              loaded = true;
-              break;
-            }
-          } catch (e) {
-            console.error(`Gagal parsing ${key}`, e);
+        if (fetchedMenu.length > 0) {
+          setDaftarMenu(fetchedMenu);
+        } else {
+          // Fallback ke localStorage jika Firestore kosong
+          const savedMenu = localStorage.getItem('rjresto_menu');
+          if (savedMenu) {
+            setDaftarMenu(JSON.parse(savedMenu));
+          } else {
+            const defaultMenu: MenuItem[] = [
+              { id: 1, nama: 'Nasi Goreng Spesial', harga: 25000, kategori: 'Makanan', tersedia: true },
+              { id: 4, nama: 'Es Teh Manis', harga: 5000, kategori: 'Minuman', tersedia: true },
+            ];
+            setDaftarMenu(defaultMenu);
           }
         }
-      }
 
-      if (!loaded) {
-        const defaultTables: TableItem[] = [
-          { id: '1', nomor: '1', status: 'Kosong' },
-          { id: '2', nomor: '2', status: 'Kosong' },
-          { id: '3', nomor: '3', status: 'Kosong' },
-          { id: '4', nomor: '4', status: 'Kosong' },
-          { id: '5', nomor: '5', status: 'Kosong' },
-          { id: '6', nomor: '6', status: 'Kosong' },
-        ];
-        setDaftarMeja(defaultTables);
-        localStorage.setItem('rjresto_meja', JSON.stringify(defaultTables));
+        // Ambil Meja dari Firestore
+        const tableQuery = query(collection(db, 'tables'));
+        const tableSnapshot = await getDocs(tableQuery);
+        const fetchedTables: TableItem[] = [];
+        tableSnapshot.forEach((docSnap) => {
+          fetchedTables.push({ id: docSnap.id, ...docSnap.data() } as TableItem);
+        });
+
+        if (fetchedTables.length > 0) {
+          setDaftarMeja(fetchedTables);
+        } else {
+          // Fallback ke localStorage jika Firestore kosong
+          const savedTables = localStorage.getItem('rjresto_meja') || localStorage.getItem('rjresto_tables');
+          if (savedTables) {
+            setDaftarMeja(JSON.parse(savedTables));
+          } else {
+            const defaultTables: TableItem[] = [
+              { id: '1', nomor: '1', status: 'Kosong' },
+              { id: '2', nomor: '2', status: 'Kosong' },
+              { id: '3', nomor: '3', status: 'Kosong' },
+              { id: '4', nomor: '4', status: 'Kosong' },
+              { id: '5', nomor: '5', status: 'Kosong' },
+              { id: '6', nomor: '6', status: 'Kosong' },
+            ];
+            setDaftarMeja(defaultTables);
+          }
+        }
+      } catch (e) {
+        console.error("Gagal mengambil data dari Firebase:", e);
       }
     };
-    loadTables();
 
-    // 3. Ambil Nama Kasir otomatis dari berbagai kemungkinan Key localStorage di aplikasi Anda
+    fetchMenuAndTables();
+
+    // 2. Ambil Nama Kasir otomatis dari localStorage sesi login
     const loadLoggedInUser = () => {
       const possibleAccountKeys = [
+        'rjresto_current_user',
         'rjresto_current_account', 
         'rjresto_user', 
         'current_user', 
@@ -110,12 +143,10 @@ export default function KasirPage() {
         const val = localStorage.getItem(key);
         if (val) {
           try {
-            // Cek apakah format JSON
             const obj = JSON.parse(val);
             if (obj) {
               const nameValue = obj.nama || obj.name || obj.username || obj.fullname;
               if (nameValue) {
-                // Ambil hanya namanya saja sebelum tanda kurung '('
                 const cleanName = String(nameValue).split('(')[0].trim();
                 if (cleanName) {
                   setNamaKasir(cleanName);
@@ -124,7 +155,6 @@ export default function KasirPage() {
               }
             }
           } catch (e) {
-            // Jika berupa string biasa
             const cleanName = val.split('(')[0].trim();
             if (cleanName) {
               setNamaKasir(cleanName);
@@ -150,7 +180,7 @@ export default function KasirPage() {
     });
   };
 
-  const ubahQty = (id: number, delta: number) => {
+  const ubahQty = (id: string | number, delta: number) => {
     setPesanan((prev) =>
       prev
         .map((item) => (item.id === id ? { ...item, qty: item.qty + delta } : item))
@@ -220,7 +250,7 @@ export default function KasirPage() {
     }
   };
 
-  const prosesPembayaran = () => {
+  const prosesPembayaran = async () => {
     if (pesanan.length === 0) return alert('Keranjang masih kosong!');
     if (metodePembayaran === 'Tunai' && numericUangDibayar < totalHarga) {
       return alert('Jumlah uang tunai kurang dari total pembayaran!');
@@ -230,9 +260,10 @@ export default function KasirPage() {
     }
 
     const totalItemsCount = pesanan.reduce((sum, item) => sum + item.qty, 0);
+    const transactionId = 'TRX-' + Math.floor(100000 + Math.random() * 900000);
 
     const newTx = {
-      id: 'TRX-' + Math.floor(100000 + Math.random() * 900000),
+      id: transactionId,
       time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
       date: new Date().toLocaleDateString('id-ID'),
       itemsCount: totalItemsCount,
@@ -251,48 +282,45 @@ export default function KasirPage() {
       status: 'Berhasil (Kasir)'
     };
 
-    let existingTransactions = [];
     try {
-      existingTransactions = JSON.parse(localStorage.getItem('rjresto_transactions') || '[]');
-    } catch (e) {
-      existingTransactions = [];
-    }
+      // 1. Simpan Transaksi ke Firestore
+      await setDoc(doc(db, 'transactions', transactionId), newTx);
 
-    const updatedTransactions = [newTx, ...existingTransactions];
-    localStorage.setItem('rjresto_transactions', JSON.stringify(updatedTransactions));
-
-    // Sinkronisasi status meja di localStorage agar terupdate menjadi 'Terisi'
-    if (tipePesanan === 'Dine In' && nomorMeja) {
-      const keysToUpdate = ['rjresto_meja', 'rjresto_tables', 'mejaResto', 'tables'];
-      for (const key of keysToUpdate) {
-        const savedTables = localStorage.getItem(key);
-        if (savedTables) {
-          try {
-            const tablesParsed = JSON.parse(savedTables);
-            const updatedTables = tablesParsed.map((t: any) => {
-              const currentNum = String(t.nomor || t.namaMeja || t.id);
-              if (currentNum === String(nomorMeja)) {
-                return { ...t, status: 'Terisi' };
-              }
-              return t;
-            });
-            localStorage.setItem(key, JSON.stringify(updatedTables));
-            setDaftarMeja(updatedTables);
-          } catch (e) {
-            console.error("Gagal update status meja", e);
-          }
+      // 2. Update Status Meja di Firestore jika Dine In
+      if (tipePesanan === 'Dine In' && nomorMeja) {
+        const targetTable = daftarMeja.find(t => String(t.nomor || t.namaMeja || t.id) === String(nomorMeja));
+        if (targetTable) {
+          const tableRef = doc(db, 'tables', String(targetTable.id));
+          await updateDoc(tableRef, { status: 'Terisi' });
+          
+          // Update state lokal meja
+          setDaftarMeja(prev => prev.map(t => 
+            String(t.nomor || t.namaMeja || t.id) === String(nomorMeja) ? { ...t, status: 'Terisi' } : t
+          ));
         }
       }
+
+      // Backup ke localStorage juga sebagai cadangan
+      let existingTransactions = [];
+      try {
+        existingTransactions = JSON.parse(localStorage.getItem('rjresto_transactions') || '[]');
+      } catch (e) {
+        existingTransactions = [];
+      }
+      localStorage.setItem('rjresto_transactions', JSON.stringify([newTx, ...existingTransactions]));
+
+      cetakStruk(newTx);
+      alert(`Pembayaran berhasil diproses! Kembalian: Rp ${Math.max(0, kembalian).toLocaleString('id-ID')}`);
+      
+      setPesanan([]);
+      setUangDibayar('');
+      setDiskonPersen(0);
+      setNomorMeja('');
+      setStatusPesanan('Pending');
+    } catch (e) {
+      console.error("Gagal memproses pembayaran ke Firebase:", e);
+      alert("Terjadi kesalahan saat menyimpan transaksi ke server.");
     }
-
-    cetakStruk(newTx);
-
-    alert(`Pembayaran berhasil diproses! Kembalian: Rp ${Math.max(0, kembalian).toLocaleString('id-ID')}`);
-    setPesanan([]);
-    setUangDibayar('');
-    setDiskonPersen(0);
-    setNomorMeja('');
-    setStatusPesanan('Pending');
   };
 
   const filteredMenu = daftarMenu.filter((menu) => {
@@ -311,7 +339,7 @@ export default function KasirPage() {
           <header className="border-b border-slate-800 pb-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div>
               <h1 className="text-2xl font-bold text-amber-400">RJResto - POS Kasir</h1>
-              <p className="text-sm text-slate-400">Sistem Kasir Utama Restoran</p>
+              <p className="text-sm text-slate-400">Sistem Kasir Utama Restoran (Database Firebase)</p>
             </div>
             <div className="flex flex-wrap gap-3">
               <Link href="/menu" className="bg-slate-800 hover:bg-slate-700 border border-slate-700 px-4 py-2 rounded-xl text-sm font-semibold transition">
@@ -534,7 +562,6 @@ export default function KasirPage() {
                       {['Tunai', 'QRIS', 'Debit'].map((metode) => (
                         <button
                           key={metode}
-                          onChange={() => setMetodePembayaran(metode)}
                           onClick={() => setMetodePembayaran(metode)}
                           className={`px-2 py-1 rounded-lg font-bold transition text-xs ${
                             metodePembayaran === metode

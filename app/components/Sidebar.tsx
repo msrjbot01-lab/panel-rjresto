@@ -2,6 +2,21 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+// Tambahkan import Firebase Firestore
+import { initializeApp, getApps, getApp } from 'firebase/app';
+import { getFirestore, doc, getDoc } from 'firebase/firestore';
+
+const firebaseConfig = {
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+};
+
+const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+const db = getFirestore(app);
 
 export default function Sidebar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -12,59 +27,81 @@ export default function Sidebar() {
   const router = useRouter();
 
   useEffect(() => {
-    const currentUserStr = localStorage.getItem('rjresto_current_user');
-    
-    const defaultMenus = [
-      '/dashboard', 
-      '/kasir', 
-      '/menu', 
-      '/meja', 
-      '/pesan', 
-      '/pemesanan', // Menampung variasi path pemesanan
-      '/settings/users', 
-      '/settings/system'
-    ];
+    async function fetchUserData() {
+      const currentUserStr = localStorage.getItem('rjresto_current_user');
+      
+      const defaultMenus = [
+        '/dashboard', 
+        '/kasir', 
+        '/menu', 
+        '/meja', 
+        '/pesan', 
+        '/pemesanan', 
+        '/settings/users', 
+        '/settings/system'
+      ];
 
-    if (currentUserStr) {
+      if (!currentUserStr) {
+        setAllowedMenus(defaultMenus);
+        return;
+      }
+
       try {
-        const user = JSON.parse(currentUserStr);
-        setCurrentUserName(user.nama || 'Karyawan');
-        setCurrentUserRole(user.role || 'Master');
+        const localUser = JSON.parse(currentUserStr);
+        // Ambil identifier unik user (misal: username atau ID dokumen di Firestore)
+        const usernameKey = localUser.username || localUser.nama;
 
-        const roleLower = (user.role || '').trim().toLowerCase();
-        const namaLower = (user.nama || '').trim().toLowerCase();
+        if (usernameKey) {
+          // Ambil data terbaru langsung dari Firestore agar sinkron antar perangkat
+          const userDocRef = doc(db, 'users', usernameKey.trim().toLowerCase());
+          const userDocSnap = await getDoc(userDocRef);
 
-        if (
-          roleLower === 'master' || 
-          roleLower === 'super admin' || 
-          roleLower === 'admin' || 
-          namaLower === 'matthew' || 
-          namaLower === 'admin'
-        ) {
-          setAllowedMenus(defaultMenus);
-        } else {
-          let userMenus = Array.isArray(user.allowedMenus) ? [...user.allowedMenus] : [];
-          
-          // Sinkronisasi otomatis jika database menyimpan '/pemesanan' agar tetap tembus ke '/pesan'
-          if (userMenus.includes('/pemesanan') && !userMenus.includes('/pesan')) {
-            userMenus.push('/pesan');
-          }
-          if (userMenus.includes('/pesan') && !userMenus.includes('/pemesanan')) {
-            userMenus.push('/pemesanan');
-          }
+          if (userDocSnap.exists()) {
+            const userData = userDocSnap.data();
+            setCurrentUserName(userData.nama || userData.username || 'Karyawan');
+            setCurrentUserRole(userData.role || 'Master');
 
-          if (!userMenus.includes('/meja')) {
-            userMenus.push('/meja');
+            const roleLower = (userData.role || '').trim().toLowerCase();
+            const namaLower = (userData.username || userData.nama || '').trim().toLowerCase();
+
+            if (
+              roleLower === 'master' || 
+              roleLower === 'super admin' || 
+              roleLower === 'admin' || 
+              namaLower === 'matthew' || 
+              namaLower === 'admin'
+            ) {
+              setAllowedMenus(defaultMenus);
+            } else {
+              let userMenus = Array.isArray(userData.allowedMenus) ? [...userData.allowedMenus] : [];
+              
+              if (userMenus.includes('/pemesanan') && !userMenus.includes('/pesan')) {
+                userMenus.push('/pesan');
+              }
+              if (userMenus.includes('/pesan') && !userMenus.includes('/pemesanan')) {
+                userMenus.push('/pemesanan');
+              }
+              if (!userMenus.includes('/meja')) {
+                userMenus.push('/meja');
+              }
+              setAllowedMenus(userMenus);
+            }
+            return;
           }
-          setAllowedMenus(userMenus);
         }
+
+        // Fallback jika dokumen tidak ditemukan di Firestore, gunakan data local storage
+        setCurrentUserName(localUser.nama || 'Karyawan');
+        setCurrentUserRole(localUser.role || 'Master');
+        setAllowedMenus(defaultMenus);
+
       } catch (e) {
-        console.error("Gagal parsing user session", e);
+        console.error("Gagal memuat data user dari Firebase", e);
         setAllowedMenus(defaultMenus);
       }
-    } else {
-      setAllowedMenus(defaultMenus);
     }
+
+    fetchUserData();
   }, []);
 
   const handleLogout = () => {

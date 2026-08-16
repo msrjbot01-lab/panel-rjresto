@@ -2,9 +2,20 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+// Import inisialisasi firebase Anda (sesuaikan path foldernya)
+import { db } from '@/lib/firebase'; 
+import { 
+  collection, 
+  getDocs, 
+  addDoc, 
+  updateDoc, 
+  deleteDoc, 
+  doc, 
+  onSnapshot 
+} from 'firebase/firestore';
 
 interface MenuItem {
-  id: number;
+  id: string; // Firestore menggunakan string untuk ID dokumen
   nama: string;
   harga: number;
   kategori: string;
@@ -227,61 +238,63 @@ export default function ManajemenMenuPage() {
   const [editKategori, setEditKategori] = useState('Makanan');
   const [editDeskripsi, setEditDeskripsi] = useState('');
 
+  // Mengambil data secara real-time dari Firestore koleksi 'menu'
   useEffect(() => {
-    const savedMenu = localStorage.getItem('rjresto_menu');
-    if (savedMenu) {
-      setMenuList(JSON.parse(savedMenu));
-    } else {
-      const defaultMenu: MenuItem[] = [
-        { id: 1, nama: 'Nasi Goreng Spesial', harga: 25000, kategori: 'Makanan', deskripsi: 'Nasi goreng dengan telur, suwiran ayam, dan kerupuk udang.', tersedia: true },
-        { id: 2, nama: 'Es Teh Manis', harga: 5000, kategori: 'Minuman', deskripsi: 'Teh melati manis segar disajikan dengan es.', tersedia: true },
-        { id: 3, nama: 'Ayam Bakar Madu', harga: 30000, kategori: 'Makanan', deskripsi: 'Ayam bakar bumbu rempah olesan madu murni.', tersedia: true },
-        { id: 4, nama: 'Jus Alpukat', harga: 15000, kategori: 'Minuman', deskripsi: 'Jus alpukat segar dengan kental manis cokelat.', tersedia: false },
-      ];
-      setMenuList(defaultMenu);
-      localStorage.setItem('rjresto_menu', JSON.stringify(defaultMenu));
-    }
+    const unsubscribe = onSnapshot(collection(db, 'menu'), (snapshot) => {
+      const items: MenuItem[] = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...(doc.data() as Omit<MenuItem, 'id'>)
+      }));
+      setMenuList(items);
+    }, (error) => {
+      console.error("Gagal mengambil data menu dari Firebase:", error);
+    });
+
+    return () => unsubscribe();
   }, []);
 
-  const tambahMenu = (e: React.FormEvent) => {
+  const tambahMenu = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!nama || !harga) return alert('Nama dan harga wajib diisi!');
 
-    const newItem: MenuItem = {
-      id: Date.now(),
-      nama,
-      harga: Number(harga),
-      kategori,
-      deskripsi,
-      tersedia: true,
-    };
+    try {
+      await addDoc(collection(db, 'menu'), {
+        nama,
+        harga: Number(harga),
+        kategori,
+        deskripsi,
+        tersedia: true,
+      });
 
-    const updatedList = [newItem, ...menuList];
-    setMenuList(updatedList);
-    localStorage.setItem('rjresto_menu', JSON.stringify(updatedList));
-
-    setNama('');
-    setHarga('');
-    setDeskripsi('');
-  };
-
-  const hapusMenu = (id: number) => {
-    if (confirm('Yakin ingin menghapus menu ini?')) {
-      const updatedList = menuList.filter((item) => item.id !== id);
-      setMenuList(updatedList);
-      localStorage.setItem('rjresto_menu', JSON.stringify(updatedList));
+      setNama('');
+      setHarga('');
+      setDeskripsi('');
+    } catch (error) {
+      console.error("Gagal menambah menu:", error);
+      alert('Terjadi kesalahan saat menyimpan ke database.');
     }
   };
 
-  const toggleKetersediaan = (id: number) => {
-    const updatedList = menuList.map((item) => {
-      if (item.id === id) {
-        return { ...item, tersedia: item.tersedia === false ? true : false };
+  const hapusMenu = async (id: string) => {
+    if (confirm('Yakin ingin menghapus menu ini?')) {
+      try {
+        await deleteDoc(doc(db, 'menu', id));
+      } catch (error) {
+        console.error("Gagal menghapus menu:", error);
+        alert('Terjadi kesalahan saat menghapus data.');
       }
-      return item;
-    });
-    setMenuList(updatedList);
-    localStorage.setItem('rjresto_menu', JSON.stringify(updatedList));
+    }
+  };
+
+  const toggleKetersediaan = async (item: MenuItem) => {
+    try {
+      const menuRef = doc(db, 'menu', item.id);
+      await updateDoc(menuRef, {
+        tersedia: item.tersedia === false ? true : false
+      });
+    } catch (error) {
+      console.error("Gagal mengubah ketersediaan:", error);
+    }
   };
 
   const mulaiEdit = (item: MenuItem) => {
@@ -292,26 +305,24 @@ export default function ManajemenMenuPage() {
     setEditDeskripsi(item.deskripsi || '');
   };
 
-  const simpanEdit = (e: React.FormEvent) => {
+  const simpanEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingItem || !editNama || !editHarga) return alert('Nama dan harga wajib diisi!');
 
-    const updatedList = menuList.map((item) => {
-      if (item.id === editingItem.id) {
-        return {
-          ...item,
-          nama: editNama,
-          harga: Number(editHarga),
-          kategori: editKategori,
-          deskripsi: editDeskripsi,
-        };
-      }
-      return item;
-    });
+    try {
+      const menuRef = doc(db, 'menu', editingItem.id);
+      await updateDoc(menuRef, {
+        nama: editNama,
+        harga: Number(editHarga),
+        kategori: editKategori,
+        deskripsi: editDeskripsi,
+      });
 
-    setMenuList(updatedList);
-    localStorage.setItem('rjresto_menu', JSON.stringify(updatedList));
-    setEditingItem(null);
+      setEditingItem(null);
+    } catch (error) {
+      console.error("Gagal memperbarui menu:", error);
+      alert('Terjadi kesalahan saat memperbarui data.');
+    }
   };
 
   const filteredMenu = menuList.filter((item) => {
@@ -335,7 +346,7 @@ export default function ManajemenMenuPage() {
           <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shadow-xl">
             <div>
               <h1 className="text-2xl font-bold text-amber-400">Manajemen Menu</h1>
-              <p className="text-sm text-slate-400 mt-1">Tambah, edit, cari, dan kelola ketersediaan menu makanan & minuman.</p>
+              <p className="text-sm text-slate-400 mt-1">Tambah, edit, cari, dan kelola ketersediaan menu makanan & minuman (Firebase).</p>
             </div>
             <Link href="/kasir" className="bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded-xl text-sm font-semibold transition border border-slate-700">
               &larr; Ke Halaman Kasir
@@ -456,7 +467,7 @@ export default function ManajemenMenuPage() {
                         <td className="py-4 px-6 font-bold text-amber-400">Rp {item.harga.toLocaleString('id-ID')}</td>
                         <td className="py-4 px-6 text-center">
                           <button
-                            onClick={() => toggleKetersediaan(item.id)}
+                            onClick={() => toggleKetersediaan(item)}
                             className={`px-3 py-1 rounded-full text-xs font-bold transition ${
                               item.tersedia !== false
                                 ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/30'
