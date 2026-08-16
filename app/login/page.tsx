@@ -35,8 +35,8 @@ export default function LoginPage() {
     // 1. Definisikan Akun Master Default (Sesuai profil master Matthew)
     const defaultAdmin = {
       id: 'master-default',
-      nama: 'Matthew',
-      password: 'matthewsel18',
+      nama: 'demo',
+      password: 'demo123',
       role: 'Master',
       status: 'Aktif',
       allowedMenus: ['/dashboard', '/kasir', '/menu', '/meja', '/pemesanan', '/settings/users', '/settings/system']
