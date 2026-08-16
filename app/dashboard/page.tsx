@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import Sidebar '@/app/components/Sidebar';
+import Sidebar from '@/app/components/Sidebar';
 // Import Firebase Firestore
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { 
